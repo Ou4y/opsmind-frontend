@@ -7,7 +7,7 @@
  * - URL parameter parsing
  */
 
-import AuthService from '/services/authService.js';
+import AuthService from '../../services/authService.js';
 
 /**
  * Router - Simple client-side router for multi-page app

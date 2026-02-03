@@ -11,7 +11,7 @@
 
 import Router from './router.js';
 import UI from './ui.js';
-import AuthService from '/services/authService.js';
+import AuthService from '../../services/authService.js';
 
 /**
  * App - Main application controller
@@ -86,22 +86,33 @@ const App = {
         // Set user info in navbar
         this.updateUserDisplay(user);
 
-        // Logout button handler
-        const logoutBtn = document.getElementById('logoutBtn');
-        logoutBtn?.addEventListener('click', async (e) => {
-            e.preventDefault();
-            
-            const confirmed = await UI.confirm({
-                title: 'Sign Out',
-                message: 'Are you sure you want to sign out?',
-                confirmText: 'Sign Out',
-                confirmClass: 'btn-danger'
+        // Logout functionality (use delegation so it works even if navbar is injected later)
+        if (!this._logoutDelegationBound) {
+            console.log('[App] Binding logout click handler');
+
+            document.addEventListener('click', async (e) => {
+                const logoutLink = e.target.closest('#logoutBtn');
+                if (!logoutLink) return;
+
+                console.log('[App] Logout clicked');
+
+                e.preventDefault();
+
+                const confirmed = await UI.confirm({
+                    title: 'Sign Out',
+                    message: 'Are you sure you want to sign out?',
+                    confirmText: 'Sign Out',
+                    confirmClass: 'btn-danger'
+                });
+
+                if (!confirmed) return;
+
+                AuthService.clearAuth();
+                Router.redirectToLogin();
             });
-            
-            if (confirmed) {
-                await Router.handleLogout();
-            }
-        });
+
+            this._logoutDelegationBound = true;
+        }
 
         // Notifications button (placeholder for future implementation)
         const notificationsBtn = document.getElementById('notificationsBtn');
@@ -260,8 +271,10 @@ const App = {
     }
 };
 
-// Auto-initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => App.init());
+// Auto-initialize when DOM is ready (single registration)
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});
 
 // Export for use by page-specific scripts
 export default App;

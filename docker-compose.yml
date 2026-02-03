@@ -1,0 +1,20 @@
+services:
+  opsmind-frontend:
+    container_name: opsmind-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      # If your backend runs on the same Docker network, you can point the UI to it
+      # Example: http://tickets-service:8080/api
+      OPSMIND_API_URL: ${OPSMIND_API_URL:-/api}
+    networks:
+      - opsmind-net
+
+networks:
+  opsmind-net:
+    name: opsmind-net
+    driver: bridge
+    internal: true

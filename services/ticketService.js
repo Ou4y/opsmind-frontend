@@ -12,7 +12,7 @@
 
 import AuthService from './authService.js';
 
-const API_BASE_URL = window.OPSMIND_API_URL || '/api';
+const API_BASE_URL = 'http://localhost:3001/tickets' || '/api';
 
 /**
  * Handle API response and errors consistently
