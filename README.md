@@ -136,4 +136,4 @@ To connect to a real backend API:
 
 ## License
 
-© 2026 OpsMind. All rights reserved.
+© 2026 OpsMind. All rights reserved./////////
