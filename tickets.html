@@ -416,48 +416,33 @@
                 <form id="createTicketForm" novalidate>
                     <div class="modal-body">
                         <div class="row g-3">
-                            <!-- Subject -->
+                            <!-- Title -->
                             <div class="col-12">
-                                <label for="newTicketSubject" class="form-label">Subject <span class="text-danger">*</span></label>
+                                <label for="newTicketSubject" class="form-label">Title <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="newTicketSubject" required maxlength="200">
-                                <div class="invalid-feedback">Please enter a subject.</div>
+                                <div class="invalid-feedback">Please enter a title.</div>
                             </div>
-
-                            <!-- Category & Priority -->
+                            <!-- Type -->
                             <div class="col-12 col-md-6">
-                                <label for="newTicketCategory" class="form-label">Category <span class="text-danger">*</span></label>
-                                <select class="form-select" id="newTicketCategory" required>
-                                    <option value="">Select category...</option>
-                                    <option value="hardware">Hardware</option>
-                                    <option value="software">Software</option>
-                                    <option value="network">Network</option>
-                                    <option value="security">Security</option>
-                                    <option value="access">Access Request</option>
-                                    <option value="other">Other</option>
+                                <label for="newTicketType" class="form-label">Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="newTicketType" required>
+                                    <option value="INCIDENT">Incident</option>
+                                    <option value="SERVICE_REQUEST">Service Request</option>
+                                    <option value="PROBLEM">Problem</option>
                                 </select>
-                                <div class="invalid-feedback">Please select a category.</div>
+                                <div class="invalid-feedback">Please select a type.</div>
                             </div>
-
+                            <!-- Priority -->
                             <div class="col-12 col-md-6">
                                 <label for="newTicketPriority" class="form-label">Priority <span class="text-danger">*</span></label>
                                 <select class="form-select" id="newTicketPriority" required>
-                                    <option value="">Select priority...</option>
-                                    <option value="low">Low</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="critical">Critical</option>
+                                    <option value="LOW">Low</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="CRITICAL">Critical</option>
                                 </select>
                                 <div class="invalid-feedback">Please select a priority.</div>
                             </div>
-
-                            <!-- Requester Email -->
-                            <div class="col-12 col-md-6">
-                                <label for="newTicketRequester" class="form-label">Requester Email <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" id="newTicketRequester" required>
-                                <div class="invalid-feedback">Please enter a valid email.</div>
-                            </div>
-
-                            <!-- Assign To -->
                             <div class="col-12 col-md-6">
                                 <label for="newTicketAssignee" class="form-label">Assign To</label>
                                 <select class="form-select" id="newTicketAssignee">
@@ -465,7 +450,6 @@
                                     <!-- Options will be loaded dynamically -->
                                 </select>
                             </div>
-
                             <!-- Description -->
                             <div class="col-12">
                                 <label for="newTicketDescription" class="form-label">Description <span class="text-danger">*</span></label>

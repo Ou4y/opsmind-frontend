@@ -164,6 +164,14 @@ function setupEventListeners() {
 
     // Pagination clicks
     document.getElementById('paginationList')?.addEventListener('click', handlePaginationClick);
+
+    // Add event listener for update form
+    if (document.getElementById('updateTicketForm')) {
+        document.getElementById('updateTicketForm').addEventListener('submit', handleUpdateTicket);
+    }
+    // Add event listener for update ticket form
+    const updateForm = document.getElementById('updateTicketForm');
+    updateForm?.addEventListener('submit', handleUpdateTicket);
 }
 
 /**
@@ -321,12 +329,12 @@ function renderTableView(tableBody) {
             <tr data-ticket-id="${ticket.id}" class="ticket-row">
                 <td><code class="text-primary">${UI.escapeHTML(ticket.id)}</code></td>
                 <td>
-                    <div class="text-truncate" style="max-width: 250px;" title="${UI.escapeHTML(ticket.subject)}">
-                        ${UI.escapeHTML(ticket.subject)}
+                    <div class="text-truncate" style="max-width: 250px;" title="${UI.escapeHTML(ticket.title || ticket.subject || '')}">
+                        ${UI.escapeHTML(ticket.title || ticket.subject || '')}
                     </div>
                 </td>
                 <td>
-                    <span class="text-muted">${UI.escapeHTML(ticket.requesterName || ticket.requester)}</span>
+                    <span class="text-muted">-</span>
                 </td>
                 <td>
                     <span class="badge ${UI.getPriorityBadgeClass(ticket.priority)}">
@@ -558,7 +566,8 @@ function populateTicketModal(ticket) {
     UI.toggle(document.getElementById('ticketDetailLoading'), false);
     UI.toggle(document.getElementById('ticketDetailInfo'), true);
 
-    document.getElementById('ticketSubject').textContent = ticket.subject;
+    // Use backend ticket title for subject field
+    document.getElementById('ticketSubject').textContent = ticket.title || ticket.subject || '';
     
     // Status badge
     const statusBadge = document.getElementById('ticketStatusBadge');
@@ -793,60 +802,95 @@ async function loadAssignees() {
  */
 async function handleCreateTicket(e) {
     e.preventDefault();
-
     const form = e.target;
     if (!UI.validateForm(form)) return;
-
     const submitBtn = document.getElementById('submitTicketBtn');
     UI.setButtonLoading(submitBtn, true);
 
-    const currentUser = (typeof AuthService !== 'undefined' && AuthService.getUser)
-        ? AuthService.getUser()
-        : null;
-
+    // Collect form values exactly as backend expects
     const title = document.getElementById('newTicketSubject').value.trim();
     const description = document.getElementById('newTicketDescription').value.trim();
+    const type = document.getElementById('newTicketType')?.value || 'INCIDENT';
+    const priority = document.getElementById('newTicketPriority').value;
+    const currentUser = AuthService.getUser?.();
+    const createdByUserId = currentUser?.id || currentUser?.userId || currentUser?.email || '';
+    const assignee = document.getElementById('newTicketAssignee').value;
 
-    // Guard: backend requires non-empty title/description.
-    if (!title || !description) {
+    // Guard: backend requires non-empty title/description/type/priority/createdByUserId
+    if (!title || !description || !type || !priority || !createdByUserId) {
         UI.setButtonLoading(submitBtn, false);
-        UI.error('Subject and description are required');
+        UI.error('All required fields must be filled');
         return;
     }
 
-    const priorityRaw = document.getElementById('newTicketPriority').value;
-    const priority = (priorityRaw || 'low').toUpperCase() === 'CRITICAL'
-        ? 'URGENT'
-        : (priorityRaw || 'low').toUpperCase();
-
-    const typeEl = document.getElementById('newTicketType');
-    const type = typeEl?.value ? typeEl.value.toUpperCase() : 'INCIDENT';
-
+    // Build ticketData exactly as backend expects
     const ticketData = {
         title,
         description,
         type,
         priority,
-        createdByUserId: currentUser?.id || currentUser?.userId || currentUser?.email || 'unknown'
+        createdByUserId,
+        assignee: assignee || undefined // send undefined if unassigned
     };
 
     try {
         await TicketService.createTicket(ticketData);
-
         UI.success('Ticket created successfully');
-
-        // Close modal
         bootstrap.Modal.getInstance(document.getElementById('createTicketModal'))?.hide();
-
-        // Reset form
         UI.resetFormValidation(form);
-
-        // Reload tickets
         state.currentPage = 1;
         await loadTickets();
     } catch (error) {
         console.error('Failed to create ticket:', error);
         UI.error(error.message || 'Failed to create ticket');
+    } finally {
+        UI.setButtonLoading(submitBtn, false);
+    }
+}
+
+/**
+ * Handle update ticket form submission
+ */
+async function handleUpdateTicket(e) {
+    e.preventDefault();
+    const form = e.target;
+    if (!UI.validateForm(form)) return;
+    const submitBtn = document.getElementById('submitUpdateTicketBtn');
+    UI.setButtonLoading(submitBtn, true);
+
+    // Collect form values exactly as backend expects
+    const title = document.getElementById('updateTicketSubject').value.trim();
+    const description = document.getElementById('updateTicketDescription').value.trim();
+    const type = document.getElementById('updateTicketType')?.value || 'INCIDENT';
+    const priority = document.getElementById('updateTicketPriority').value;
+    const assignee = document.getElementById('updateTicketAssignee').value;
+    const ticketId = state.selectedTicket;
+
+    // Guard: backend requires non-empty title/description/type/priority
+    if (!title || !description || !type || !priority) {
+        UI.setButtonLoading(submitBtn, false);
+        UI.error('All required fields must be filled');
+        return;
+    }
+
+    // Build ticketData exactly as backend expects
+    const ticketData = {
+        title,
+        description,
+        type,
+        priority,
+        assignee: assignee || undefined // send undefined if unassigned
+    };
+
+    try {
+        await TicketService.updateTicket(ticketId, ticketData);
+        UI.success('Ticket updated successfully');
+        bootstrap.Modal.getInstance(document.getElementById('updateTicketModal'))?.hide();
+        UI.resetFormValidation(form);
+        await loadTickets();
+    } catch (error) {
+        console.error('Failed to update ticket:', error);
+        UI.error(error.message || 'Failed to update ticket');
     } finally {
         UI.setButtonLoading(submitBtn, false);
     }
