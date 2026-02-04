@@ -5,11 +5,13 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "8085:85"
     environment:
       # If your backend runs on the same Docker network, you can point the UI to it
       # Example: http://tickets-service:8080/api
-      OPSMIND_API_URL: ${OPSMIND_API_URL:-/api}
+      OPSMIND_API_URL: http://localhost:3001
+      NODE_ENV: production
+      PORT: 80
     networks:
       - opsmind-net
 
@@ -17,4 +19,4 @@ networks:
   opsmind-net:
     name: opsmind-net
     driver: bridge
-    internal: true
+    external: true

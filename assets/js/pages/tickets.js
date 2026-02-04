@@ -15,6 +15,7 @@ import TicketService from '/services/ticketService.js';
 import WorkflowService from '/services/workflowService.js';
 import AIService from '/services/aiService.js';
 import Router from '/assets/js/router.js';
+import AuthService from '/services/authService.js';
 
 /**
  * Page state
@@ -259,58 +260,9 @@ async function loadTickets() {
     }
 }
 
-/**
- * Use mock tickets for demo
- */
-function useMockTickets() {
-    state.tickets = generateMockTickets();
-    state.totalTickets = 47;
-    state.totalPages = 5;
-    renderTickets();
-    renderPagination();
-    
-    if (state.selectedTicket) {
-        openTicketDetail(state.selectedTicket);
-        state.selectedTicket = null;
-    }
-}
 
-/**
- * Generate mock ticket data
- */
-function generateMockTickets() {
-    const subjects = [
-        'Email not syncing on mobile devices',
-        'VPN connection drops frequently',
-        'Printer not responding in Finance',
-        'Software license activation failed',
-        'Network slow in Building B',
-        'New laptop setup required',
-        'Access request for SharePoint',
-        'Password reset not working',
-        'Monitor flickering issue',
-        'Application crashing on startup'
-    ];
 
-    const statuses = ['open', 'in_progress', 'pending', 'resolved', 'closed'];
-    const priorities = ['low', 'medium', 'high', 'critical'];
-    const categories = ['hardware', 'software', 'network', 'security', 'access'];
-    const assignees = ['John Smith', 'Sarah Wilson', 'Mike Johnson', 'Lisa Chen', null];
 
-    return subjects.map((subject, index) => ({
-        id: `TKT-${1250 - index}`,
-        subject,
-        description: `Detailed description for: ${subject}. User reported this issue and needs assistance.`,
-        requester: `user${index + 1}@company.com`,
-        requesterName: `User ${index + 1}`,
-        assignee: assignees[index % assignees.length],
-        status: statuses[index % statuses.length],
-        priority: priorities[index % priorities.length],
-        category: categories[index % categories.length],
-        createdAt: new Date(Date.now() - (index * 3600000 * (Math.random() * 24 + 1))),
-        updatedAt: new Date(Date.now() - (index * 1800000))
-    }));
-}
 
 /**
  * Render tickets in current view mode
@@ -834,26 +786,47 @@ async function handleCreateTicket(e) {
     const submitBtn = document.getElementById('submitTicketBtn');
     UI.setButtonLoading(submitBtn, true);
 
+    const currentUser = (typeof AuthService !== 'undefined' && AuthService.getUser)
+        ? AuthService.getUser()
+        : null;
+
+    const title = document.getElementById('newTicketSubject').value.trim();
+    const description = document.getElementById('newTicketDescription').value.trim();
+
+    // Guard: backend requires non-empty title/description.
+    if (!title || !description) {
+        UI.setButtonLoading(submitBtn, false);
+        UI.error('Subject and description are required');
+        return;
+    }
+
+    const priorityRaw = document.getElementById('newTicketPriority').value;
+    const priority = (priorityRaw || 'low').toUpperCase() === 'CRITICAL'
+        ? 'URGENT'
+        : (priorityRaw || 'low').toUpperCase();
+
+    const typeEl = document.getElementById('newTicketType');
+    const type = typeEl?.value ? typeEl.value.toUpperCase() : 'INCIDENT';
+
     const ticketData = {
-        subject: document.getElementById('newTicketSubject').value.trim(),
-        category: document.getElementById('newTicketCategory').value,
-        priority: document.getElementById('newTicketPriority').value,
-        requester: document.getElementById('newTicketRequester').value.trim(),
-        assignee: document.getElementById('newTicketAssignee').value || null,
-        description: document.getElementById('newTicketDescription').value.trim()
+        title,
+        description,
+        type,
+        priority,
+        createdByUserId: currentUser?.id || currentUser?.userId || currentUser?.email || 'unknown'
     };
 
     try {
-        const newTicket = await TicketService.createTicket(ticketData);
-        
+        await TicketService.createTicket(ticketData);
+
         UI.success('Ticket created successfully');
-        
+
         // Close modal
         bootstrap.Modal.getInstance(document.getElementById('createTicketModal'))?.hide();
-        
+
         // Reset form
         UI.resetFormValidation(form);
-        
+
         // Reload tickets
         state.currentPage = 1;
         await loadTickets();

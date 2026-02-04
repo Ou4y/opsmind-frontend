@@ -12,7 +12,48 @@
 
 import AuthService from './authService.js';
 
-const API_BASE_URL = 'http://localhost:3001/tickets' || '/api';
+// Prefer runtime-configured base URL (set by assets/js/config.js or docker env injection).
+// Fallback to localhost for local dev, then to relative /api.
+const API_BASE_URL = (
+    (typeof window !== 'undefined' && window.OPSMIND_API_URL) ? window.OPSMIND_API_URL :
+    (typeof process !== 'undefined' && process?.env?.OPSMIND_API_URL) ? process.env.OPSMIND_API_URL :
+    'http://localhost:3001'
+);
+
+const VALID_TYPES = new Set(['INCIDENT', 'REQUEST', 'PROBLEM', 'CHANGE']);
+const VALID_PRIORITIES = new Set(['LOW', 'MEDIUM', 'HIGH', 'URGENT']);
+
+function normalizeType(value) {
+    const v = String(value || 'INCIDENT').trim().toUpperCase();
+    return VALID_TYPES.has(v) ? v : 'INCIDENT';
+}
+
+function normalizePriority(value) {
+    const v = String(value || 'LOW').trim().toUpperCase();
+    if (v === 'CRITICAL') return 'URGENT';
+    return VALID_PRIORITIES.has(v) ? v : 'LOW';
+}
+
+function resolveCreatedByUserId(ticketData) {
+    // Prefer explicit value, otherwise derive from stored user.
+    if (ticketData?.createdByUserId) return ticketData.createdByUserId;
+    const user = AuthService.getUser?.();
+    return user?.id || user?.userId || user?.email || 'unknown';
+}
+
+function normalizeCreateTicketPayload(ticketData = {}) {
+    // Accept both legacy fields (subject/requester/assignee/category) and backend schema.
+    const title = (ticketData.title ?? ticketData.subject ?? '').toString().trim();
+    const description = (ticketData.description ?? '').toString().trim();
+
+    return {
+        title,
+        description,
+        type: normalizeType(ticketData.type),
+        priority: normalizePriority(ticketData.priority),
+        createdByUserId: resolveCreatedByUserId(ticketData)
+    };
+}
 
 /**
  * Handle API response and errors consistently
@@ -111,13 +152,15 @@ const TicketService = {
      * @returns {Promise<Object>} Created ticket
      */
     async createTicket(ticketData) {
+        const payload = normalizeCreateTicketPayload(ticketData);
+
         const response = await fetch(`${API_BASE_URL}/tickets`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 ...AuthService.getAuthHeaders()
             },
-            body: JSON.stringify(ticketData)
+            body: JSON.stringify(payload)
         });
 
         return handleResponse(response);

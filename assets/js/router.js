@@ -182,7 +182,6 @@ const Router = {
     }
 };
 
-// Freeze to prevent modifications
-Object.freeze(Router);
+
 
 export default Router;

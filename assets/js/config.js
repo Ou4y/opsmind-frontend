@@ -5,4 +5,4 @@
 // It can be overridden via a <script> tag before app scripts load.
 
 // If not already set, default to relative /api.
-window.OPSMIND_API_URL = window.OPSMIND_API_URL || '/api';
+window.OPSMIND_API_URL = 'http://localhost:3001' || '/api';

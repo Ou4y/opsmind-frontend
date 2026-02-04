@@ -1,15 +1,17 @@
 # OpsMind Frontend - Container image
-# Serves static files via nginx
+# Serves static files without nginx
 
-FROM nginx:1.27-alpine
+FROM node:20-alpine
 
-# Nginx config (SPA-friendly, but this app is multi-page so default index fallback is harmless)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Static site content
-COPY . /usr/share/nginx/html
+# Install a simple static file server
+RUN npm -g install serve@14
 
-EXPOSE 80
+# Copy static site content
+COPY . .
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
-  CMD wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1
+EXPOSE 85
+
+# Serve the site on port 85 inside the container
+CMD ["serve", "-l", "85", "."]
