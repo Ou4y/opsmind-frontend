@@ -224,18 +224,36 @@ async function loadTickets() {
     }
 
     try {
+        // Calculate offset for backend pagination
+        const offset = (state.currentPage - 1) * state.pageSize;
         const response = await TicketService.getTickets({
-            page: state.currentPage,
             limit: state.pageSize,
+            offset,
             ...state.filters,
             sortBy: state.sortBy,
             sortOrder: state.sortOrder
         });
 
-        // Handle response
-        state.tickets = response.tickets || response.data || [];
-        state.totalTickets = response.total || state.tickets.length;
-        state.totalPages = response.totalPages || Math.ceil(state.totalTickets / state.pageSize);
+        // Handle response: support array or object
+        let ticketsArr = [];
+        let total = 0;
+        if (Array.isArray(response)) {
+            ticketsArr = response;
+            total = response.length;
+        } else if (response.tickets) {
+            ticketsArr = response.tickets;
+            total = response.total || ticketsArr.length;
+        } else if (response.items) {
+            ticketsArr = response.items;
+            total = response.total || ticketsArr.length;
+        } else if (response.data) {
+            ticketsArr = response.data;
+            total = response.total || ticketsArr.length;
+        }
+
+        state.tickets = ticketsArr;
+        state.totalTickets = total;
+        state.totalPages = Math.max(1, Math.ceil(total / state.pageSize));
 
         renderTickets();
         renderPagination();
@@ -259,10 +277,6 @@ async function loadTickets() {
         state.isLoading = false;
     }
 }
-
-
-
-
 
 /**
  * Render tickets in current view mode
