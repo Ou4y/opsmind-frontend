@@ -169,9 +169,27 @@ function setupEventListeners() {
     if (document.getElementById('updateTicketForm')) {
         document.getElementById('updateTicketForm').addEventListener('submit', handleUpdateTicket);
     }
-    // Add event listener for update ticket form
+    // Add event listener for update ticket form to show confirmation modal only
     const updateForm = document.getElementById('updateTicketForm');
-    updateForm?.addEventListener('submit', handleUpdateTicket);
+    if (updateForm) {
+        updateForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent direct update
+            // Show confirmation modal
+            const confirmModal = document.getElementById('confirmUpdateTicketModal');
+            if (!confirmModal) return;
+            const confirmInstance = bootstrap.Modal.getOrCreateInstance(confirmModal);
+            confirmInstance.show();
+        });
+    }
+    // Only handle update after confirmation
+    let confirmUpdateBtn = document.getElementById('confirmUpdateTicketBtn');
+    if (confirmUpdateBtn) {
+        confirmUpdateBtn.addEventListener('click', handleUpdateTicket);
+    }
+
+    // Add event listener for delete confirmation
+    const deleteBtn = document.getElementById('confirmDeleteTicketBtn');
+    deleteBtn?.addEventListener('click', handleDeleteTicket);
 }
 
 /**
@@ -362,6 +380,12 @@ function renderTableView(tableBody) {
                         <button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation();" data-action="workflow" data-id="${ticket.id}" title="Trigger Workflow">
                             <i class="bi bi-play"></i>
                         </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="event.stopPropagation();" data-action="update" data-id="${ticket.id}" title="Update Ticket">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();" data-action="delete" data-id="${ticket.id}" title="Delete Ticket">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -390,6 +414,20 @@ function renderTableView(tableBody) {
             e.stopPropagation();
             state.selectedTicket = btn.dataset.id;
             openWorkflowModal();
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="update"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openUpdateModal(btn.dataset.id);
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showDeleteConfirmation(btn.dataset.id);
         });
     });
 }
@@ -770,6 +808,31 @@ function openCreateModal() {
 }
 
 /**
+ * Open update ticket modal
+ */
+function openUpdateModal(ticketId) {
+    const ticket = state.tickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+    state.selectedTicket = ticketId;
+    // Fill update modal fields with ticket values
+    const subjectInput = document.getElementById('updateTicketSubject');
+    const descriptionInput = document.getElementById('updateTicketDescription');
+    const typeInput = document.getElementById('updateTicketType');
+    const priorityInput = document.getElementById('updateTicketPriority');
+    const assigneeInput = document.getElementById('updateTicketAssignee');
+    if (subjectInput) subjectInput.value = ticket.title || '';
+    if (descriptionInput) descriptionInput.value = ticket.description || '';
+    if (typeInput) typeInput.value = ticket.type || 'INCIDENT';
+    if (priorityInput) priorityInput.value = ticket.priority || 'LOW';
+    if (assigneeInput) assigneeInput.value = ticket.assignee || '';
+    // Show update modal
+    const modal = document.getElementById('updateTicketModal');
+    if (!modal) return;
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+    modalInstance.show();
+}
+
+/**
  * Load assignees for create form
  */
 async function loadAssignees() {
@@ -894,6 +957,38 @@ async function handleUpdateTicket(e) {
     } finally {
         UI.setButtonLoading(submitBtn, false);
     }
+}
+
+/**
+ * Handle ticket deletion
+ */
+async function handleDeleteTicket() {
+    const ticketId = state.selectedTicket;
+    if (!ticketId) return;
+    const deleteBtn = document.getElementById('confirmDeleteTicketBtn');
+    UI.setButtonLoading(deleteBtn, true);
+    try {
+        await TicketService.deleteTicket(ticketId);
+        UI.success('Ticket deleted successfully');
+        bootstrap.Modal.getInstance(document.getElementById('deleteTicketModal'))?.hide();
+        state.selectedTicket = null;
+        await loadTickets();
+    } catch (error) {
+        UI.error(error.message || 'Failed to delete ticket');
+    } finally {
+        UI.setButtonLoading(deleteBtn, false);
+    }
+}
+
+/**
+ * Show delete confirmation modal
+ */
+function showDeleteConfirmation(ticketId) {
+    state.selectedTicket = ticketId;
+    const modal = document.getElementById('deleteTicketModal');
+    if (!modal) return;
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
 }
 
 /**

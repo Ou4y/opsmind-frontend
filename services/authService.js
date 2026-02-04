@@ -10,7 +10,7 @@
  */
 
 // API base URL - can be configured for different environments
-const API_BASE_URL = window.OPSMIND_API_URL || '/api';
+const API_BASE_URL ='/api';
 
 // Storage keys
 const TOKEN_KEY = 'opsmind_token';
