@@ -10,6 +10,7 @@
 import AuthService from './authService.js';
 
 const API_BASE_URL = window.OPSMIND_API_URL || '/api';
+const AI_API_BASE_URL = window.OPSMIND_AI_API_URL || 'http://localhost:8000';
 
 /**
  * Handle API response and errors consistently
@@ -22,8 +23,16 @@ async function handleResponse(response) {
     }
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `Request failed with status ${response.status}`);
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+            const error = await response.json();
+            // Handle different error response formats
+            errorMessage = error.message || error.detail || error.error || JSON.stringify(error);
+        } catch (e) {
+            // If response is not JSON, use status text
+            errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
     }
 
     return response.json();
@@ -185,6 +194,85 @@ const AIService = {
                 ...AuthService.getAuthHeaders()
             }
         });
+
+        return handleResponse(response);
+    },
+
+    /**
+     * Get SLA breach prediction for a ticket
+     * POST /predict-sla
+     * @param {Object} ticketData - Ticket details for analysis
+     * @returns {Promise<Object>} SLA breach percentage and analysis
+     */
+    async getSLABreachPrediction(ticketData) {
+        // Map ticket data to backend expected format
+        const createdAt = ticketData.createdAt ? new Date(ticketData.createdAt) : new Date();
+        const requestBody = {
+            support_level: String(ticketData.support_level || ticketData.type || 'INCIDENT'),
+            priority: String(ticketData.priority || 'MEDIUM'),
+            created_hour: Number(createdAt.getHours()),
+            created_day: String(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][createdAt.getDay()]),
+            assigned_team: String(ticketData.assigned_team || ticketData.assignee || 'General Support')
+        };
+
+        console.log('AIService - Predicting SLA breach:', requestBody);
+        console.log('AIService - API URL:', `${AI_API_BASE_URL}/predict-sla`);
+
+        const response = await fetch(`${AI_API_BASE_URL}/predict-sla`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        console.log('AIService - Prediction response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('AIService - Prediction error:', errorText);
+        }
+
+        const result = await handleResponse(response);
+        console.log('AIService - Prediction result:', result);
+        return result;
+    },
+
+    /**
+     * Submit feedback for AI SLA prediction
+     * POST /feedback/sla
+     * @param {string} ticketId - Ticket ID
+     * @param {number} aiProbability - AI predicted probability (0-100)
+     * @param {number} adminDecision - Admin's decision (0 or 1)
+     * @param {number} finalOutcome - Final outcome (0 = no breach, 1 = breach)
+     * @returns {Promise<Object>} Feedback submission result
+     */
+    async submitFeedback(ticketId, aiProbability, adminDecision, finalOutcome) {
+        // Ensure all values are the correct type and valid
+        const requestBody = {
+            ticket_id: String(ticketId),
+            ai_probability: Number(aiProbability),
+            admin_decision: Number(adminDecision),
+            final_outcome: Number(finalOutcome)
+        };
+
+        console.log('AIService - Sending feedback to backend:', requestBody);
+        console.log('AIService - API URL:', `${AI_API_BASE_URL}/feedback/sla`);
+
+        const response = await fetch(`${AI_API_BASE_URL}/feedback/sla`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        console.log('AIService - Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('AIService - Error response:', errorText);
+        }
 
         return handleResponse(response);
     }
