@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OpsMind AI Chatbot - Intelligent IT Support Assistant">
+    <title>AI Chatbot - OpsMind</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/assets/css/main.css" rel="stylesheet">
+
+    <!-- Runtime config (must be before any app/service scripts) -->
+    <script src="/assets/js/config.js"></script>
+
+    <style>
+        .chatbot-container {
+            height: calc(100vh - 80px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: #f8f9fa;
+        }
+
+        .chat-message {
+            display: flex;
+            margin-bottom: 1rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+
+        .chat-message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .message-avatar.bot {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-right: 0.75rem;
+        }
+
+        .message-avatar.user {
+            background: #6c757d;
+            color: white;
+            margin-left: 0.75rem;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 1rem 1.25rem;
+            border-radius: 18px;
+            position: relative;
+        }
+
+        .chat-message.bot .message-content {
+            background: white;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .chat-message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            margin-top: 0.25rem;
+        }
+
+        .chat-input-container {
+            padding: 1.5rem;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chat-input button {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .chat-input button:hover {
+            transform: scale(1.05);
+        }
+
+        .chat-input button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 0.75rem;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6c757d;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .quick-action-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .chat-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .stat-card-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .stat-card-label {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body class="app-body">
+    <!-- Navigation -->
+    <nav class="navbar-main" id="navbar-container">
+        <button class="navbar-menu-item sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+            <i class="bi bi-list"></i>
+        </button>
+        <a href="dashboard.html" class="navbar-brand">
+            <span class="navbar-brand-icon"><i class="bi bi-gear-wide-connected"></i></span>
+            <span class="d-none d-sm-inline">OpsMind</span>
+        </a>
+        <div class="navbar-menu">
+            <button class="navbar-menu-item d-none d-md-flex" id="globalSearch" aria-label="Global search"><i class="bi bi-search"></i></button>
+            <button class="navbar-menu-item" id="notificationsBtn" aria-label="Notifications"><i class="bi bi-bell"></i><span class="notification-badge" id="notificationBadge"></span></button>
+            <button class="navbar-menu-item d-none d-md-flex" id="helpBtn" aria-label="Help"><i class="bi bi-question-circle"></i></button>
+            <div class="dropdown">
+                <div class="navbar-user" data-bs-toggle="dropdown" aria-expanded="false" role="button">
+                    <div class="navbar-user-avatar" id="userAvatar">DU</div>
+                    <div class="navbar-user-info">
+                        <div class="navbar-user-name" id="userName">Demo User</div>
+                        <div class="navbar-user-role" id="userRole">Technician</div>
+                    </div>
+                    <i class="bi bi-chevron-down d-none d-md-inline text-muted"></i>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><div class="dropdown-header"><strong id="dropdownUserName">Demo User</strong><small class="text-muted d-block" id="dropdownUserEmail">demo@opsmind.io</small></div></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i> Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i> Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" id="logoutBtn"><i class="bi bi-box-arrow-right me-2"></i> Sign Out</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="app-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar-container">
+            <nav class="sidebar-nav">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Main</div>
+                    <a href="dashboard.html" class="sidebar-link" data-page="dashboard"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
+                    <a href="tickets.html" class="sidebar-link" data-page="tickets"><i class="bi bi-ticket-detailed"></i><span>Tickets</span></a>
+                    <a href="workflows.html" class="sidebar-link" data-page="workflows"><i class="bi bi-diagram-3"></i><span>Workflows</span></a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Management</div>
+                    <a href="#" class="sidebar-link" data-page="assets"><i class="bi bi-hdd-stack"></i><span>Assets</span></a>
+                    <a href="#" class="sidebar-link" data-page="knowledge"><i class="bi bi-book"></i><span>Knowledge Base</span></a>
+                    <a href="#" class="sidebar-link" data-page="sla"><i class="bi bi-speedometer2"></i><span>SLA Policies</span></a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">AI & Automation</div>
+                    <a href="ai-insights.html" class="sidebar-link" data-page="ai-insights"><i class="bi bi-lightbulb"></i><span>AI Insights</span></a>
+                    <a href="chatbot.html" class="sidebar-link active" data-page="chatbot"><i class="bi bi-robot"></i><span>AI Chatbot</span></a>
+                    <a href="#" class="sidebar-link" data-page="automations"><i class="bi bi-lightning-charge"></i><span>Automations</span></a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Reports</div>
+                    <a href="#" class="sidebar-link" data-page="analytics"><i class="bi bi-graph-up"></i><span>Analytics</span></a>
+                    <a href="#" class="sidebar-link" data-page="reports"><i class="bi bi-file-earmark-bar-graph"></i><span>Reports</span></a>
+                </div>
+            </nav>
+        </aside>
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-header-content">
+                    <h1 class="page-title">
+                        <i class="bi bi-robot me-2"></i>AI Chatbot Assistant
+                    </h1>
+                    <p class="page-subtitle">Get instant help with IT support, ticket management, and system queries</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-outline-primary" id="clearChatBtn">
+                        <i class="bi bi-trash"></i>
+                        <span class="d-none d-sm-inline ms-2">Clear Chat</span>
+                    </button>
+                    <button class="btn btn-outline-secondary" id="exportChatBtn">
+                        <i class="bi bi-download"></i>
+                        <span class="d-none d-sm-inline ms-2">Export</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Page Content -->
+            <div class="page-content">
+
+            <!-- Chat Statistics -->
+            <div class="chat-stats">
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: #dbeafe; color: #3b82f6;">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <div class="stat-card-value" id="totalMessagesCount">0</div>
+                    <div class="stat-card-label">Total Messages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: #dcfce7; color: #22c55e;">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="stat-card-value" id="resolvedQueriesCount">0</div>
+                    <div class="stat-card-label">Queries Resolved</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: #fef3c7; color: #f59e0b;">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div class="stat-card-value" id="avgResponseTime">< 1s</div>
+                    <div class="stat-card-label">Avg Response Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: #e9d5ff; color: #a855f7;">
+                        <i class="bi bi-star"></i>
+                    </div>
+                    <div class="stat-card-value" id="satisfactionScore">4.8</div>
+                    <div class="stat-card-label">Satisfaction Score</div>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="card shadow-sm">
+                <div class="chatbot-container">
+                    <!-- Chat Header -->
+                    <div class="chat-header">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                                    <i class="bi bi-robot"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">OpsMind Assistant</h5>
+                                    <small style="opacity: 0.9;">
+                                        <i class="bi bi-circle-fill" style="font-size: 0.5rem; color: #22c55e;"></i>
+                                        Online • Ready to help
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm" style="background: rgba(255,255,255,0.2); border: none; color: white;" id="chatSettingsBtn" title="Settings">
+                                    <i class="bi bi-gear"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="quick-actions" id="quickActionsContainer">
+                            <button class="quick-action-btn" data-message="How do I create a new ticket?">
+                                <i class="bi bi-ticket"></i> Create Ticket
+                            </button>
+                            <button class="quick-action-btn" data-message="Show me my open tickets">
+                                <i class="bi bi-list-check"></i> My Tickets
+                            </button>
+                            <button class="quick-action-btn" data-message="What's the status of ticket #1234?">
+                                <i class="bi bi-search"></i> Check Status
+                            </button>
+                            <button class="quick-action-btn" data-message="How do I escalate a ticket?">
+                                <i class="bi bi-arrow-up-circle"></i> Escalation
+                            </button>
+                            <button class="quick-action-btn" data-message="Tell me about SLA policies">
+                                <i class="bi bi-info-circle"></i> SLA Info
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Welcome Message -->
+                        <div class="chat-message bot">
+                            <div class="message-avatar bot">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div>
+                                <div class="message-content">
+                                    <div>
+                                        👋 Hello! I'm your OpsMind AI Assistant. I'm here to help you with:
+                                        <ul class="mt-2 mb-0">
+                                            <li>Creating and managing tickets</li>
+                                            <li>Checking ticket status and history</li>
+                                            <li>Understanding SLA policies</li>
+                                            <li>Workflow automation questions</li>
+                                            <li>General IT support queries</li>
+                                        </ul>
+                                    </div>
+                                    <div class="message-time">Just now</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="chat-input-container">
+                        <div class="chat-input">
+                            <input 
+                                type="text" 
+                                id="chatInput" 
+                                placeholder="Type your message here..." 
+                                autocomplete="off"
+                            />
+                            <button id="sendMessageBtn" aria-label="Send message">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2 text-muted" style="font-size: 0.75rem; text-align: center;">
+                            <i class="bi bi-shield-check"></i> Your conversations are secure and encrypted
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- App Scripts -->
+    <!-- Main app initialization (handles sidebar, navbar, user info) -->
+    <script type="module" src="/assets/js/app.js"></script>
+    
+    <!-- Page-specific scripts -->
+    <script type="module">
+        import { initChatbotPage } from '/assets/js/pages/chatbot.js';
+        
+        // Wait for app to be ready before initializing page
+        document.addEventListener('app:ready', () => {
+            console.log('[Chatbot] App ready, initializing page...');
+            initChatbotPage();
+        });
+        
+        // Fallback: also listen to DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    if (!document.querySelector('.chatbot-page-initialized')) {
+                        console.log('[Chatbot] Initializing from DOMContentLoaded...');
+                        initChatbotPage();
+                    }
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html>
