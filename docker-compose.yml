@@ -14,9 +14,23 @@ services:
       PORT: 80
     networks:
       - opsmind-net
+  
+  ollama:
+    container_name: opsmind-ollama
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - opsmind-net
+    restart: unless-stopped
 
 networks:
   opsmind-net:
     name: opsmind-net
     driver: bridge
     external: true
+
+volumes:
+  ollama-data:
