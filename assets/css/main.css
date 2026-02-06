@@ -111,23 +111,53 @@ body {
     justify-content: center;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
     padding: 20px;
+    perspective: 1000px;
 }
 
 .login-container {
     width: 100%;
-    max-width: 420px;
+    max-width: 480px;
+    perspective: 1000px;
 }
 
+/* Card Wrapper for Flip Effect */
+.login-card-wrapper {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: 500px;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+}
+
+.login-card-wrapper.flipped {
+    transform: rotateY(180deg);
+}
+
+/* Individual Cards */
 .login-card {
+    position: absolute;
+    width: 100%;
     background: white;
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     padding: 40px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.login-card-front {
+    z-index: 2;
+    transform: rotateY(0deg);
+}
+
+.login-card-back {
+    transform: rotateY(180deg);
 }
 
 .login-header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
 
 .login-logo {
@@ -139,6 +169,11 @@ body {
     align-items: center;
     justify-content: center;
     margin: 0 auto 16px;
+    transition: transform var(--transition-base);
+}
+
+.login-logo:hover {
+    transform: scale(1.05) rotate(5deg);
 }
 
 .login-logo i {
@@ -167,21 +202,92 @@ body {
 }
 
 .login-footer p {
-    font-size: var(--font-size-xs);
-    color: var(--color-gray-400);
+    font-size: var(--font-size-sm);
+    color: var(--color-gray-600);
     margin: 0;
+}
+
+.signup-link {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+.signup-link:hover {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
 }
 
 .forgot-password-link {
     font-size: var(--font-size-sm);
     color: var(--color-primary);
     text-decoration: none;
+    transition: all var(--transition-fast);
 }
 
 .forgot-password-link:hover {
+    color: var(--color-primary-hover);
     text-decoration: underline;
 }
 
+/* Account Type Selector */
+.account-type-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.account-type-option {
+    flex: 1;
+    margin: 0 !important;
+}
+
+.account-type-option .form-check-input {
+    display: none;
+}
+
+.account-type-option .form-check-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    border: 2px solid var(--color-gray-300);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    background: white;
+    font-weight: 500;
+    color: var(--color-gray-700);
+    text-align: center;
+}
+
+.account-type-option .form-check-label i {
+    font-size: 28px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.account-type-option .form-check-input:checked + .form-check-label {
+    border-color: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(67, 97, 238, 0.1) 100%);
+    color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+}
+
+.account-type-option .form-check-label:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+/* Doctor Icon Color */
+.account-type-option .form-check-input:checked + .form-check-label i {
+    color: var(--color-primary);
+}
+
+/* Login Form Enhancements */
 .btn-login {
     padding: 12px 24px;
     font-weight: 600;
@@ -190,6 +296,56 @@ body {
 .btn-login .btn-loader {
     display: inline-flex;
     align-items: center;
+}
+
+/* Form Control Enhancements for Login/Signup */
+.login-card .form-control,
+.login-card .form-select {
+    padding: 10px 14px;
+    border: 2px solid var(--color-gray-300);
+    transition: all var(--transition-base);
+}
+
+.login-card .form-control:focus,
+.login-card .form-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.login-card .input-group-text {
+    background: var(--color-gray-50);
+    border: 2px solid var(--color-gray-300);
+    border-right: none;
+}
+
+.login-card .input-group .form-control {
+    border-left: none;
+}
+
+.login-card .input-group .btn {
+    border: 2px solid var(--color-gray-300);
+    border-left: none;
+}
+
+/* Responsive adjustments for login cards */
+@media (max-width: 576px) {
+    .login-card {
+        padding: 30px 24px;
+    }
+    
+    .login-container {
+        max-width: 100%;
+    }
+    
+    .account-type-option .form-check-label {
+        padding: 12px 8px;
+        font-size: var(--font-size-sm);
+    }
+    
+    .account-type-option .form-check-label i {
+        font-size: 24px;
+        margin-bottom: 4px;
+    }
 }
 
 /* ====================================
@@ -492,6 +648,15 @@ body {
     flex-wrap: wrap;
 }
 
+/* Enhanced page header spacing for buttons */
+.page-header-actions .btn {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
 /* ====================================
    Page Content
    ==================================== */
@@ -539,7 +704,7 @@ body {
 
 .stat-card-info .stat-icon {
     background: var(--color-info-light);
-    color: var(--color-info);
+    color: var (--color-info);
 }
 
 .stat-card-danger .stat-icon {
@@ -577,7 +742,7 @@ body {
 }
 
 .stat-change.positive {
-    color: var(--color-success);
+    color: var (--color-success);
 }
 
 .stat-change.negative {
@@ -817,8 +982,50 @@ body {
    ==================================== */
 .filter-card {
     border: none;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     border-radius: var(--radius-lg);
+    background: white;
+    transition: all var(--transition-base);
+    overflow: hidden;
+}
+
+.filter-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.filter-card .card-body {
+    padding: 24px;
+}
+
+/* Filter card button enhancements */
+.filter-card .btn {
+    min-height: 38px;
+}
+
+/* Clear filters button within filter card */
+.filter-card #clearFilters {
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+/* Form controls in filter card */
+.filter-card .form-label {
+    font-weight: 500;
+    color: var(--color-gray-700);
+    margin-bottom: 8px;
+    font-size: var(--font-size-sm);
+}
+
+.filter-card .form-control,
+.filter-card .form-select {
+    border: 1px solid var(--color-gray-300);
+    transition: all var(--transition-base);
+}
+
+.filter-card .form-control:focus,
+.filter-card .form-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
 }
 
 /* ====================================
@@ -998,7 +1205,7 @@ body {
 .empty-state p,
 .error-state p {
     font-size: var(--font-size-sm);
-    color: var(--color-gray-500);
+    color: var (--color-gray-500);
     margin: 0 0 16px 0;
 }
 
@@ -1157,6 +1364,17 @@ body {
     50% { opacity: 0.5; }
 }
 
+/* Shake animation for errors */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
 .step-title {
     font-size: var(--font-size-sm);
     font-weight: 600;
@@ -1239,7 +1457,7 @@ body {
 
 .execution-step-time {
     font-size: var(--font-size-xs);
-    color: var(--color-gray-400);
+    color: var (--color-gray-400);
     white-space: nowrap;
 }
 
@@ -1426,28 +1644,146 @@ body {
     font-weight: 500;
     padding: 8px 16px;
     border-radius: var(--radius);
-    transition: all var(--transition-fast);
+    transition: all var(--transition-base);
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-primary {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    border: 2px solid transparent;
+    background-origin: border-box;
+    color: white;
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    position: relative;
 }
 
 .btn-primary:hover {
-    background: var(--color-primary-hover);
-    border-color: var(--color-primary-hover);
+    background: linear-gradient(135deg, var(--color-primary-hover) 0%, #352db8 100%);
+    border-color: transparent;
+    box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+    transform: translateY(-2px);
+    color: white;
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(67, 97, 238, 0.35);
+}
+
+/* Subtle pulse effect on primary buttons */
+.btn-primary:not(:hover):not(:active) {
+    animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* Create Ticket Button - Enhanced */
+#createTicketBtn {
+    padding: 11px 28px;
+    font-size: var(--font-size-base);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: none;
+    position: relative;
+    overflow: visible;
+}
+
+#createTicketBtn i {
+    font-size: 1.2em;
+    transition: transform var(--transition-base);
+    display: inline-block;
+}
+
+#createTicketBtn:hover i {
+    transform: rotate(90deg);
+}
+
+/* Add a subtle shine effect */
+#createTicketBtn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+#createTicketBtn:hover::before {
+    left: 100%;
 }
 
 .btn-outline-secondary {
     border-color: var(--color-gray-300);
     color: var(--color-gray-700);
+    background: white;
+    transition: all var(--transition-base);
 }
 
 .btn-outline-secondary:hover {
     background: var(--color-gray-100);
     border-color: var(--color-gray-400);
     color: var(--color-gray-900);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.btn-outline-secondary:active {
+    transform: translateY(0);
+}
+
+/* Clear Filters Button - Enhanced */
+#clearFilters {
+    position: relative;
+    border: 2px solid var(--color-danger);
+    color: var(--color-danger);
+    background: white;
+    font-weight: 600;
+    transition: all var(--transition-base);
+    letter-spacing: 0.3px;
+    padding: 8px 18px;
+}
+
+#clearFilters:hover {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    transform: translateY(-1px);
+}
+
+#clearFilters:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+#clearFilters i {
+    transition: transform var(--transition-base);
+    font-weight: bold;
+}
+
+#clearFilters:hover i {
+    transform: rotate(180deg);
+}
+
+/* Focus states for accessibility */
+.btn-primary:focus,
+#createTicketBtn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+}
+
+#clearFilters:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.btn-outline-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.2);
 }
 
 .btn-sm {
@@ -1459,6 +1795,30 @@ body {
 .btn .btn-loader {
     display: inline-flex;
     align-items: center;
+}
+
+/* ====================================
+   Button Animations & Special Effects
+   ==================================== */
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(67, 97, 238, 0.25);
+    }
+    50% {
+        box-shadow: 0 2px 12px rgba(67, 97, 238, 0.4);
+    }
+}
+
+/* Ripple effect on button click */
+@keyframes ripple {
+    0% {
+        transform: scale(0);
+        opacity: 0.6;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
 }
 
 /* ====================================
@@ -1513,6 +1873,135 @@ body {
     
     .modal-dialog {
         margin: 8px;
+    }
+    
+    /* Mobile button adjustments */
+    #createTicketBtn {
+        padding: 10px 18px;
+        font-size: var(--font-size-sm);
+    }
+    
+    .page-header-actions {
+        width: 100%;
+    }
+    
+    .page-header-actions .btn {
+        flex: 1;
+    }
+    
+    #clearFilters {
+        padding: 8px 14px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    /* Stack buttons on very small screens */
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .page-header-actions {
+        justify-content: stretch;
+    }
+    
+    #createTicketBtn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Large screens - Enhanced spacing and sizes */
+@media (min-width: 1400px) {
+    #createTicketBtn {
+        padding: 12px 32px;
+        font-size: 1.05rem;
+    }
+    
+    #clearFilters {
+        padding: 10px 20px;
+    }
+    
+    .filter-card .form-label {
+        font-weight: 500;
+    }
+}
+
+/* Desktop and Laptop screens */
+@media (min-width: 992px) and (max-width: 1399.98px) {
+    #createTicketBtn {
+        padding: 10px 24px;
+    }
+    
+    #clearFilters {
+        padding: 9px 16px;
+        font-size: var(--font-size-sm);
+    }
+    
+    /* Ensure full text shows */
+    #clearFilters .d-none.d-xl-inline {
+        display: inline !important;
+    }
+}
+
+/* Tablet screens */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .filter-card .col-lg-1 {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+    
+    #clearFilters {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Mobile screens */
+@media (max-width: 767.98px) {
+    .page-header {
+        padding: 16px;
+    }
+    
+    .page-content {
+        padding: 16px;
+    }
+    
+    .page-title {
+        font-size: var(--font-size-xl);
+    }
+    
+    .stat-card-body {
+        padding: 16px;
+    }
+    
+    .stat-value {
+        font-size: var(--font-size-xl);
+    }
+    
+    .modal-dialog {
+        margin: 8px;
+    }
+    
+    /* Mobile button adjustments */
+    #createTicketBtn {
+        padding: 10px 18px;
+        font-size: var(--font-size-sm);
+        width: 100%;
+    }
+    
+    .page-header-actions {
+        width: 100%;
+    }
+    
+    #clearFilters {
+        width: 100%;
+        padding: 10px 16px;
+    }
+    
+    /* Show icon only on mobile for space */
+    #clearFilters span {
+        display: inline !important;
     }
 }
 

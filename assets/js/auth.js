@@ -15,12 +15,20 @@ import AuthService from '/services/authService.js';
  */
 function initLoginPage() {
     const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    const cardWrapper = document.querySelector('.login-card-wrapper');
+    const showSignupBtn = document.getElementById('showSignup');
+    const showLoginBtn = document.getElementById('showLogin');
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const togglePasswordBtn = document.getElementById('togglePassword');
+    const toggleSignupPasswordBtn = document.getElementById('toggleSignupPassword');
     const loginButton = document.getElementById('loginButton');
+    const signupButton = document.getElementById('signupButton');
     const loginError = document.getElementById('loginError');
     const loginErrorMessage = document.getElementById('loginErrorMessage');
+    const signupError = document.getElementById('signupError');
+    const signupErrorMessage = document.getElementById('signupErrorMessage');
 
     // Check if already authenticated
     if (AuthService.isAuthenticated()) {
@@ -29,7 +37,24 @@ function initLoginPage() {
     }
 
     /**
-     * Toggle password visibility
+     * Toggle between Sign In and Sign Up forms
+     */
+    showSignupBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        cardWrapper?.classList.add('flipped');
+        hideError();
+        hideSignupError();
+    });
+
+    showLoginBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        cardWrapper?.classList.remove('flipped');
+        hideError();
+        hideSignupError();
+    });
+
+    /**
+     * Toggle password visibility for login
      */
     togglePasswordBtn?.addEventListener('click', () => {
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
@@ -37,6 +62,20 @@ function initLoginPage() {
         
         // Toggle icon
         const icon = togglePasswordBtn.querySelector('i');
+        icon.classList.toggle('bi-eye');
+        icon.classList.toggle('bi-eye-slash');
+    });
+
+    /**
+     * Toggle password visibility for signup
+     */
+    toggleSignupPasswordBtn?.addEventListener('click', () => {
+        const signupPasswordInput = document.getElementById('signupPassword');
+        const type = signupPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        signupPasswordInput.setAttribute('type', type);
+        
+        // Toggle icon
+        const icon = toggleSignupPasswordBtn.querySelector('i');
         icon.classList.toggle('bi-eye');
         icon.classList.toggle('bi-eye-slash');
     });
@@ -61,6 +100,25 @@ function initLoginPage() {
     }
 
     /**
+     * Show signup error message
+     */
+    function showSignupError(message) {
+        signupErrorMessage.textContent = message;
+        signupError.classList.remove('d-none');
+        
+        // Shake animation
+        signupError.classList.add('shake');
+        setTimeout(() => signupError.classList.remove('shake'), 500);
+    }
+
+    /**
+     * Hide signup error message
+     */
+    function hideSignupError() {
+        signupError.classList.add('d-none');
+    }
+
+    /**
      * Set loading state on login button
      */
     function setLoading(loading) {
@@ -73,6 +131,24 @@ function initLoginPage() {
             btnLoader.classList.remove('d-none');
         } else {
             loginButton.disabled = false;
+            btnText.classList.remove('d-none');
+            btnLoader.classList.add('d-none');
+        }
+    }
+
+    /**
+     * Set loading state on signup button
+     */
+    function setSignupLoading(loading) {
+        const btnText = signupButton.querySelector('.btn-text');
+        const btnLoader = signupButton.querySelector('.btn-loader');
+        
+        if (loading) {
+            signupButton.disabled = true;
+            btnText.classList.add('d-none');
+            btnLoader.classList.remove('d-none');
+        } else {
+            signupButton.disabled = false;
             btnText.classList.remove('d-none');
             btnLoader.classList.add('d-none');
         }
@@ -148,6 +224,93 @@ function initLoginPage() {
             } else {
                 showError(error.message || 'An error occurred. Please try again.');
             }
+        }
+    });
+
+    /**
+     * Handle signup form submission
+     */
+    signupForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideSignupError();
+
+        const fullName = document.getElementById('fullName').value.trim();
+        const email = document.getElementById('signupEmail').value.trim();
+        const password = document.getElementById('signupPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const accountType = document.querySelector('input[name="accountType"]:checked')?.value;
+        const agreeTerms = document.getElementById('agreeTerms').checked;
+
+        // Client-side validation
+        if (!fullName) {
+            showSignupError('Please enter your full name.');
+            document.getElementById('fullName').focus();
+            return;
+        }
+
+        if (!email) {
+            showSignupError('Please enter your email address.');
+            document.getElementById('signupEmail').focus();
+            return;
+        }
+
+        if (!isValidEmail(email)) {
+            showSignupError('Please enter a valid email address.');
+            document.getElementById('signupEmail').focus();
+            return;
+        }
+
+        if (!password) {
+            showSignupError('Please enter a password.');
+            document.getElementById('signupPassword').focus();
+            return;
+        }
+
+        if (password.length < 8) {
+            showSignupError('Password must be at least 8 characters.');
+            document.getElementById('signupPassword').focus();
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showSignupError('Passwords do not match.');
+            document.getElementById('confirmPassword').focus();
+            return;
+        }
+
+        if (!accountType) {
+            showSignupError('Please select an account type.');
+            return;
+        }
+
+        if (!agreeTerms) {
+            showSignupError('You must agree to the terms and conditions.');
+            return;
+        }
+
+        // Attempt signup
+        setSignupLoading(true);
+
+        try {
+            // In a real app, this would call AuthService.signup()
+            // For demo, we'll simulate a successful signup
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Show success message
+            alert(`Account created successfully!\n\nName: ${fullName}\nEmail: ${email}\nAccount Type: ${accountType.charAt(0).toUpperCase() + accountType.slice(1)}\n\nYou can now sign in.`);
+            
+            // Switch back to login form
+            cardWrapper?.classList.remove('flipped');
+            signupForm.reset();
+            
+            // Pre-fill email in login form
+            emailInput.value = email;
+            
+        } catch (error) {
+            setSignupLoading(false);
+            showSignupError(error.message || 'An error occurred. Please try again.');
+        } finally {
+            setSignupLoading(false);
         }
     });
 
