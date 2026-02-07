@@ -124,8 +124,7 @@ body {
 .login-card-wrapper {
     position: relative;
     width: 100%;
-    height: auto;
-    min-height: 500px;
+    min-height: 580px;
     transition: transform 0.8s;
     transform-style: preserve-3d;
 }
@@ -138,26 +137,30 @@ body {
 .login-card {
     position: absolute;
     width: 100%;
+    min-height: 580px;
     background: white;
     border-radius: var(--radius-xl);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    padding: 40px;
+    padding: 32px 40px;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    overflow: visible;
 }
 
 .login-card-front {
     z-index: 2;
     transform: rotateY(0deg);
+    min-height: 500px;
 }
 
 .login-card-back {
     transform: rotateY(180deg);
+    min-height: 580px;
 }
 
 .login-header {
     text-align: center;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
 }
 
 .login-logo {
@@ -196,8 +199,8 @@ body {
 
 .login-footer {
     text-align: center;
-    margin-top: 24px;
-    padding-top: 24px;
+    margin-top: 20px;
+    padding-top: 20px;
     border-top: 1px solid var(--color-gray-200);
 }
 
@@ -264,8 +267,8 @@ body {
 }
 
 .account-type-option .form-check-label i {
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 32px;
+    margin-bottom: 6px;
     display: block;
 }
 
@@ -301,7 +304,7 @@ body {
 /* Form Control Enhancements for Login/Signup */
 .login-card .form-control,
 .login-card .form-select {
-    padding: 10px 14px;
+    padding: 9px 14px;
     border: 2px solid var(--color-gray-300);
     transition: all var(--transition-base);
 }
@@ -316,6 +319,7 @@ body {
     background: var(--color-gray-50);
     border: 2px solid var(--color-gray-300);
     border-right: none;
+    padding: 9px 12px;
 }
 
 .login-card .input-group .form-control {
@@ -325,6 +329,49 @@ body {
 .login-card .input-group .btn {
     border: 2px solid var(--color-gray-300);
     border-left: none;
+}
+
+/* Compact form spacing */
+.login-card .mb-3 {
+    margin-bottom: 0.875rem !important;
+}
+
+.login-card .mb-4 {
+    margin-bottom: 1rem !important;
+}
+
+.login-card .form-label {
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* OTP Input Styling */
+.otp-input {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.5em;
+    padding: 0.75rem;
+}
+
+.otp-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.15);
+}
+
+/* OTP Modal */
+#otpModal .modal-content {
+    border-radius: var(--radius-xl);
+}
+
+#otpModal .modal-header {
+    background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(67, 97, 238, 0.1) 100%);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+#otpModal .modal-title {
+    color: var(--color-primary);
+    font-weight: 600;
 }
 
 /* Responsive adjustments for login cards */
@@ -1103,7 +1150,7 @@ body {
 .badge-status-in_progress,
 .badge-status-in-progress {
     background: var(--color-info-light);
-    color: var(--color-info);
+    color: var (--color-info);
 }
 
 .badge-status-pending {
@@ -1134,7 +1181,7 @@ body {
 
 .badge-priority-medium {
     background: var(--color-info-light);
-    color: var(--color-info);
+    color: var (--color-info);
 }
 
 .badge-priority-low {
@@ -1161,7 +1208,7 @@ body {
 /* Execution status badges */
 .badge-execution-running {
     background: var(--color-info-light);
-    color: var(--color-info);
+    color: var (--color-info);
 }
 
 .badge-execution-completed {
@@ -1350,7 +1397,7 @@ body {
 
 .workflow-step.running::before {
     background: var(--color-info);
-    border-color: var(--color-info);
+    border-color: var (--color-info);
     animation: pulse 1.5s infinite;
 }
 
@@ -1429,7 +1476,7 @@ body {
 }
 
 .execution-step.running::before {
-    background: var(--color-info);
+    background: var (--color-info);
     animation: pulse 1.5s infinite;
 }
 
@@ -1596,7 +1643,7 @@ body {
 }
 
 .toast-info {
-    background: var(--color-info);
+    background: var (--color-info);
     color: white;
 }
 

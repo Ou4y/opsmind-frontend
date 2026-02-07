@@ -1,11 +1,12 @@
 /**
  * OpsMind - Authentication Page Module
  * 
- * Handles the login page functionality:
+ * Handles complete authentication flow:
+ * - Sign up with email validation
+ * - OTP verification (for signup and login)
+ * - Login with OTP
+ * - Password validation
  * - Form validation
- * - Authentication API call
- * - Error handling
- * - Password visibility toggle
  */
 
 import AuthService from '/services/authService.js';
@@ -14,21 +15,53 @@ import AuthService from '/services/authService.js';
  * Initialize the login page
  */
 function initLoginPage() {
+    console.log('🚀 Initializing login page...');
+    
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
+    const otpForm = document.getElementById('otpForm');
     const cardWrapper = document.querySelector('.login-card-wrapper');
     const showSignupBtn = document.getElementById('showSignup');
     const showLoginBtn = document.getElementById('showLogin');
+    
+    console.log('📋 Elements found:', {
+        cardWrapper: !!cardWrapper,
+        showSignupBtn: !!showSignupBtn,
+        showLoginBtn: !!showLoginBtn
+    });
+    
+    // Login form elements
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const togglePasswordBtn = document.getElementById('togglePassword');
-    const toggleSignupPasswordBtn = document.getElementById('toggleSignupPassword');
     const loginButton = document.getElementById('loginButton');
-    const signupButton = document.getElementById('signupButton');
     const loginError = document.getElementById('loginError');
     const loginErrorMessage = document.getElementById('loginErrorMessage');
+    
+    // Signup form elements
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput = document.getElementById('lastName');
+    const signupEmailInput = document.getElementById('signupEmail');
+    const signupPasswordInput = document.getElementById('signupPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const toggleSignupPasswordBtn = document.getElementById('toggleSignupPassword');
+    const signupButton = document.getElementById('signupButton');
     const signupError = document.getElementById('signupError');
     const signupErrorMessage = document.getElementById('signupErrorMessage');
+    
+    // OTP modal elements
+    const otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
+    const otpModalTitle = document.getElementById('otpModalTitle');
+    const otpEmail = document.getElementById('otpEmail');
+    const otpCode = document.getElementById('otpCode');
+    const otpInstructions = document.getElementById('otpInstructions');
+    const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+    const resendOtpBtn = document.getElementById('resendOtpBtn');
+    const otpError = document.getElementById('otpError');
+    const otpErrorMessage = document.getElementById('otpErrorMessage');
+    const otpSuccess = document.getElementById('otpSuccess');
+    const otpSuccessMessage = document.getElementById('otpSuccessMessage');
+    const closeOtpModal = document.getElementById('closeOtpModal');
 
     // Check if already authenticated
     if (AuthService.isAuthenticated()) {
@@ -36,10 +69,17 @@ function initLoginPage() {
         return;
     }
 
+    // Check if there's a pending OTP verification on page load
+    const pendingVerification = AuthService.getPendingVerification();
+    if (pendingVerification) {
+        showOTPModal(pendingVerification.email, pendingVerification.purpose);
+    }
+
     /**
      * Toggle between Sign In and Sign Up forms
      */
     showSignupBtn?.addEventListener('click', (e) => {
+        console.log('🔄 Sign Up clicked - flipping card...');
         e.preventDefault();
         cardWrapper?.classList.add('flipped');
         hideError();
@@ -47,6 +87,7 @@ function initLoginPage() {
     });
 
     showLoginBtn?.addEventListener('click', (e) => {
+        console.log('🔄 Sign In clicked - flipping card back...');
         e.preventDefault();
         cardWrapper?.classList.remove('flipped');
         hideError();
@@ -60,7 +101,6 @@ function initLoginPage() {
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
         
-        // Toggle icon
         const icon = togglePasswordBtn.querySelector('i');
         icon.classList.toggle('bi-eye');
         icon.classList.toggle('bi-eye-slash');
@@ -70,30 +110,26 @@ function initLoginPage() {
      * Toggle password visibility for signup
      */
     toggleSignupPasswordBtn?.addEventListener('click', () => {
-        const signupPasswordInput = document.getElementById('signupPassword');
         const type = signupPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         signupPasswordInput.setAttribute('type', type);
         
-        // Toggle icon
         const icon = toggleSignupPasswordBtn.querySelector('i');
         icon.classList.toggle('bi-eye');
         icon.classList.toggle('bi-eye-slash');
     });
 
     /**
-     * Show error message
+     * Show error message for login
      */
     function showError(message) {
         loginErrorMessage.textContent = message;
         loginError.classList.remove('d-none');
-        
-        // Shake animation
         loginError.classList.add('shake');
         setTimeout(() => loginError.classList.remove('shake'), 500);
     }
 
     /**
-     * Hide error message
+     * Hide login error message
      */
     function hideError() {
         loginError.classList.add('d-none');
@@ -105,8 +141,6 @@ function initLoginPage() {
     function showSignupError(message) {
         signupErrorMessage.textContent = message;
         signupError.classList.remove('d-none');
-        
-        // Shake animation
         signupError.classList.add('shake');
         setTimeout(() => signupError.classList.remove('shake'), 500);
     }
@@ -116,6 +150,40 @@ function initLoginPage() {
      */
     function hideSignupError() {
         signupError.classList.add('d-none');
+    }
+
+    /**
+     * Show OTP error message
+     */
+    function showOTPError(message) {
+        otpErrorMessage.textContent = message;
+        otpError.classList.remove('d-none');
+        otpError.classList.add('shake');
+        setTimeout(() => otpError.classList.remove('shake'), 500);
+        hideOTPSuccess();
+    }
+
+    /**
+     * Hide OTP error message
+     */
+    function hideOTPError() {
+        otpError.classList.add('d-none');
+    }
+
+    /**
+     * Show OTP success message
+     */
+    function showOTPSuccess(message) {
+        otpSuccessMessage.textContent = message;
+        otpSuccess.classList.remove('d-none');
+        hideOTPError();
+    }
+
+    /**
+     * Hide OTP success message
+     */
+    function hideOTPSuccess() {
+        otpSuccess.classList.add('d-none');
     }
 
     /**
@@ -155,6 +223,26 @@ function initLoginPage() {
     }
 
     /**
+     * Set loading state on OTP verify button
+     */
+    function setOTPLoading(loading) {
+        const btnText = verifyOtpBtn.querySelector('.btn-text');
+        const btnLoader = verifyOtpBtn.querySelector('.btn-loader');
+        
+        if (loading) {
+            verifyOtpBtn.disabled = true;
+            resendOtpBtn.disabled = true;
+            btnText.classList.add('d-none');
+            btnLoader.classList.remove('d-none');
+        } else {
+            verifyOtpBtn.disabled = false;
+            resendOtpBtn.disabled = false;
+            btnText.classList.remove('d-none');
+            btnLoader.classList.add('d-none');
+        }
+    }
+
+    /**
      * Validate email format
      */
     function isValidEmail(email) {
@@ -163,7 +251,29 @@ function initLoginPage() {
     }
 
     /**
-     * Handle form submission
+     * Show OTP verification modal
+     */
+    function showOTPModal(email, purpose) {
+        otpEmail.textContent = email;
+        otpCode.value = '';
+        hideOTPError();
+        hideOTPSuccess();
+        
+        // Update modal title and instructions based on purpose
+        if (purpose === 'VERIFICATION') {
+            otpModalTitle.textContent = 'Verify Your Email';
+            otpInstructions.innerHTML = `We've sent a verification code to <strong>${email}</strong>. Please enter the 6-digit code below to verify your account.`;
+        } else {
+            otpModalTitle.textContent = 'Enter Login Code';
+            otpInstructions.innerHTML = `We've sent a login code to <strong>${email}</strong>. Please enter the 6-digit code below to complete sign in.`;
+        }
+        
+        otpModal.show();
+        setTimeout(() => otpCode.focus(), 300);
+    }
+
+    /**
+     * Handle login form submission
      */
     loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -171,7 +281,6 @@ function initLoginPage() {
 
         const email = emailInput.value.trim();
         const password = passwordInput.value;
-        const rememberMe = document.getElementById('rememberMe')?.checked || false;
 
         // Client-side validation
         if (!email) {
@@ -186,14 +295,14 @@ function initLoginPage() {
             return;
         }
 
-        if (!password) {
-            showError('Please enter your password.');
-            passwordInput.focus();
+        if (!AuthService.validateMIUEmail(email)) {
+            showError('Email must end with @miuegypt.edu.eg');
+            emailInput.focus();
             return;
         }
 
-        if (password.length < 4) {
-            showError('Password must be at least 4 characters.');
+        if (!password) {
+            showError('Please enter your password.');
             passwordInput.focus();
             return;
         }
@@ -202,28 +311,16 @@ function initLoginPage() {
         setLoading(true);
 
         try {
-            await AuthService.login(email, password, rememberMe);
-            
-            // Redirect to dashboard or intended page
-            const redirectUrl = sessionStorage.getItem('opsmind_redirect');
-            sessionStorage.removeItem('opsmind_redirect');
-            
-            if (redirectUrl && !redirectUrl.includes('index.html')) {
-                window.location.href = redirectUrl;
-            } else {
-                window.location.href = 'dashboard.html';
-            }
-        } catch (error) {
+            const response = await AuthService.login(email, password);
             setLoading(false);
             
-            // Handle specific error types
-            if (error.message.includes('Invalid credentials')) {
-                showError('Invalid email or password. Please try again.');
-            } else if (error.message.includes('Network') || error.message.includes('fetch')) {
-                showError('Unable to connect to the server. Please check your connection.');
-            } else {
-                showError(error.message || 'An error occurred. Please try again.');
-            }
+            // Show OTP modal
+            const pending = AuthService.getPendingVerification();
+            showOTPModal(pending.email, pending.purpose);
+            
+        } catch (error) {
+            setLoading(false);
+            showError(error.message || 'An error occurred. Please try again.');
         }
     });
 
@@ -234,47 +331,62 @@ function initLoginPage() {
         e.preventDefault();
         hideSignupError();
 
-        const fullName = document.getElementById('fullName').value.trim();
-        const email = document.getElementById('signupEmail').value.trim();
-        const password = document.getElementById('signupPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+        const firstName = firstNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+        const email = signupEmailInput.value.trim();
+        const password = signupPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
         const accountType = document.querySelector('input[name="accountType"]:checked')?.value;
         const agreeTerms = document.getElementById('agreeTerms').checked;
 
         // Client-side validation
-        if (!fullName) {
-            showSignupError('Please enter your full name.');
-            document.getElementById('fullName').focus();
+        if (!firstName) {
+            showSignupError('Please enter your first name.');
+            firstNameInput.focus();
+            return;
+        }
+
+        if (!lastName) {
+            showSignupError('Please enter your last name.');
+            lastNameInput.focus();
             return;
         }
 
         if (!email) {
             showSignupError('Please enter your email address.');
-            document.getElementById('signupEmail').focus();
+            signupEmailInput.focus();
             return;
         }
 
         if (!isValidEmail(email)) {
             showSignupError('Please enter a valid email address.');
-            document.getElementById('signupEmail').focus();
+            signupEmailInput.focus();
+            return;
+        }
+
+        if (!AuthService.validateMIUEmail(email)) {
+            showSignupError('Email must end with @miuegypt.edu.eg');
+            signupEmailInput.focus();
             return;
         }
 
         if (!password) {
             showSignupError('Please enter a password.');
-            document.getElementById('signupPassword').focus();
+            signupPasswordInput.focus();
             return;
         }
 
-        if (password.length < 8) {
-            showSignupError('Password must be at least 8 characters.');
-            document.getElementById('signupPassword').focus();
+        // Validate password strength
+        const passwordValidation = AuthService.validatePassword(password);
+        if (!passwordValidation.valid) {
+            showSignupError(passwordValidation.errors[0]);
+            signupPasswordInput.focus();
             return;
         }
 
         if (password !== confirmPassword) {
             showSignupError('Passwords do not match.');
-            document.getElementById('confirmPassword').focus();
+            confirmPasswordInput.focus();
             return;
         }
 
@@ -292,42 +404,146 @@ function initLoginPage() {
         setSignupLoading(true);
 
         try {
-            // In a real app, this would call AuthService.signup()
-            // For demo, we'll simulate a successful signup
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Map frontend role names to backend expectations
+            const roleMapping = {
+                'professor': 'DOCTOR',
+                'student': 'STUDENT'
+            };
             
-            // Show success message
-            alert(`Account created successfully!\n\nName: ${fullName}\nEmail: ${email}\nAccount Type: ${accountType.charAt(0).toUpperCase() + accountType.slice(1)}\n\nYou can now sign in.`);
+            const response = await AuthService.signup({
+                firstName,
+                lastName,
+                email,
+                password,
+                role: roleMapping[accountType]
+            });
             
-            // Switch back to login form
-            cardWrapper?.classList.remove('flipped');
-            signupForm.reset();
+            setSignupLoading(false);
             
-            // Pre-fill email in login form
-            emailInput.value = email;
+            // Show success message and OTP modal
+            showOTPModal(email, 'VERIFICATION');
             
         } catch (error) {
             setSignupLoading(false);
             showSignupError(error.message || 'An error occurred. Please try again.');
-        } finally {
-            setSignupLoading(false);
         }
     });
 
     /**
-     * Clear error on input change
+     * Handle OTP form submission
+     */
+    otpForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideOTPError();
+        hideOTPSuccess();
+
+        const code = otpCode.value.trim();
+        const pending = AuthService.getPendingVerification();
+
+        if (!pending) {
+            showOTPError('Session expired. Please try again.');
+            return;
+        }
+
+        if (!code || code.length !== 6) {
+            showOTPError('Please enter a valid 6-digit code.');
+            otpCode.focus();
+            return;
+        }
+
+        setOTPLoading(true);
+
+        try {
+            const response = await AuthService.verifyOTP(pending.email, code, pending.purpose);
+            setOTPLoading(false);
+            
+            if (pending.purpose === 'VERIFICATION') {
+                // Account verified, backend sends LOGIN OTP
+                showOTPSuccess('✓ Account verified! Check your email for login code.');
+                otpCode.value = '';
+                
+                // Wait 2 seconds then update modal for LOGIN
+                setTimeout(() => {
+                    const newPending = AuthService.getPendingVerification();
+                    if (newPending && newPending.purpose === 'LOGIN') {
+                        showOTPModal(newPending.email, 'LOGIN');
+                    }
+                }, 2000);
+                
+            } else if (pending.purpose === 'LOGIN') {
+                // Login successful
+                showOTPSuccess('✓ Login successful! Redirecting...');
+                
+                // Redirect to dashboard after brief delay
+                setTimeout(() => {
+                    otpModal.hide();
+                    window.location.href = 'dashboard.html';
+                }, 1500);
+            }
+            
+        } catch (error) {
+            setOTPLoading(false);
+            showOTPError(error.message || 'Invalid code. Please try again.');
+            otpCode.value = '';
+            otpCode.focus();
+        }
+    });
+
+    /**
+     * Handle resend OTP
+     */
+    resendOtpBtn?.addEventListener('click', async () => {
+        const pending = AuthService.getPendingVerification();
+        
+        if (!pending) {
+            showOTPError('Session expired. Please try again.');
+            return;
+        }
+
+        resendOtpBtn.disabled = true;
+        hideOTPError();
+
+        try {
+            await AuthService.resendOTP(pending.email, pending.purpose);
+            showOTPSuccess('✓ Code resent! Check your email.');
+            
+            setTimeout(() => {
+                resendOtpBtn.disabled = false;
+                hideOTPSuccess();
+            }, 3000);
+            
+        } catch (error) {
+            showOTPError(error.message || 'Failed to resend code.');
+            resendOtpBtn.disabled = false;
+        }
+    });
+
+    /**
+     * Handle OTP modal close
+     */
+    closeOtpModal?.addEventListener('click', () => {
+        // Clear pending verification when modal is closed
+        AuthService.clearPendingVerification();
+        otpCode.value = '';
+        hideOTPError();
+        hideOTPSuccess();
+    });
+
+    /**
+     * Auto-format OTP input (numbers only)
+     */
+    otpCode?.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+    });
+
+    /**
+     * Clear errors on input change
      */
     emailInput?.addEventListener('input', hideError);
     passwordInput?.addEventListener('input', hideError);
-
-    /**
-     * Handle Enter key on password field
-     */
-    passwordInput?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            loginForm?.requestSubmit();
-        }
-    });
+    signupEmailInput?.addEventListener('input', hideSignupError);
+    signupPasswordInput?.addEventListener('input', hideSignupError);
+    confirmPasswordInput?.addEventListener('input', hideSignupError);
 
     // Focus on email input on page load
     emailInput?.focus();
@@ -335,15 +551,3 @@ function initLoginPage() {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initLoginPage);
-
-// Add shake animation CSS if not present
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-        20%, 40%, 60%, 80% { transform: translateX(5px); }
-    }
-    .shake { animation: shake 0.5s ease-in-out; }
-`;
-document.head.appendChild(style);

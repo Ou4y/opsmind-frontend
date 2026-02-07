@@ -50,7 +50,7 @@
                             class="form-control" 
                             id="email" 
                             name="email"
-                            placeholder="you@company.com" 
+                            placeholder="you@miuegypt.edu.eg" 
                             required
                             autocomplete="email"
                         >
@@ -135,25 +135,25 @@
                     <label class="form-label d-block">Account Type</label>
                     <div class="account-type-selector">
                         <div class="form-check form-check-inline account-type-option">
-                            <input class="form-check-input" type="radio" name="accountType" id="doctorAccount" value="doctor" required checked>
-                            <label class="form-check-label" for="doctorAccount">
-                                <i class="bi bi-heart-pulse-fill me-2"></i>
-                                <span>Doctor</span>
+                            <input class="form-check-input" type="radio" name="accountType" id="professorAccount" value="professor" required checked>
+                            <label class="form-check-label" for="professorAccount">
+                                <i class="bi bi-person-video3"></i>
+                                <span>Professor</span>
                             </label>
                         </div>
                         <div class="form-check form-check-inline account-type-option">
                             <input class="form-check-input" type="radio" name="accountType" id="studentAccount" value="student" required>
                             <label class="form-check-label" for="studentAccount">
-                                <i class="bi bi-mortarboard-fill me-2"></i>
+                                <i class="bi bi-mortarboard-fill"></i>
                                 <span>Student</span>
                             </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- Full Name Input -->
+                <!-- First Name Input -->
                 <div class="mb-3">
-                    <label for="fullName" class="form-label">Full Name</label>
+                    <label for="firstName" class="form-label">First Name</label>
                     <div class="input-group">
                         <span class="input-group-text">
                             <i class="bi bi-person"></i>
@@ -161,14 +161,34 @@
                         <input 
                             type="text" 
                             class="form-control" 
-                            id="fullName" 
-                            name="fullName"
-                            placeholder="John Doe" 
+                            id="firstName" 
+                            name="firstName"
+                            placeholder="John" 
                             required
-                            autocomplete="name"
+                            autocomplete="given-name"
                         >
                     </div>
-                    <div class="invalid-feedback">Please enter your full name.</div>
+                    <div class="invalid-feedback">Please enter your first name.</div>
+                </div>
+
+                <!-- Last Name Input -->
+                <div class="mb-3">
+                    <label for="lastName" class="form-label">Last Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-person-fill"></i>
+                        </span>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="lastName" 
+                            name="lastName"
+                            placeholder="Doe" 
+                            required
+                            autocomplete="family-name"
+                        >
+                    </div>
+                    <div class="invalid-feedback">Please enter your last name.</div>
                 </div>
 
                 <!-- Email Input -->
@@ -183,7 +203,7 @@
                             class="form-control" 
                             id="signupEmail" 
                             name="email"
-                            placeholder="you@company.com" 
+                            placeholder="you@miuegypt.edu.eg" 
                             required
                             autocomplete="email"
                         >
@@ -266,13 +286,79 @@
                 <p>Already have an account? <a href="#" class="signup-link" id="showLogin">Sign In</a></p>
             </div>
         </div>
+        </div>
     </div>
+
+    <!-- OTP Verification Modal -->
+    <div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="otpModalLabel">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        <span id="otpModalTitle">Verify Your Email</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="closeOtpModal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Success Alert (hidden by default) -->
+                    <div id="otpSuccess" class="alert alert-success d-none" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        <span id="otpSuccessMessage"></span>
+                    </div>
+
+                    <!-- Error Alert (hidden by default) -->
+                    <div id="otpError" class="alert alert-danger d-none" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="otpErrorMessage"></span>
+                    </div>
+
+                    <p class="text-muted mb-3" id="otpInstructions">
+                        We've sent a verification code to <strong id="otpEmail"></strong>. 
+                        Please enter the 6-digit code below.
+                    </p>
+
+                    <form id="otpForm">
+                        <!-- OTP Input -->
+                        <div class="mb-3">
+                            <label for="otpCode" class="form-label">Verification Code</label>
+                            <input 
+                                type="text" 
+                                class="form-control form-control-lg text-center otp-input" 
+                                id="otpCode" 
+                                maxlength="6"
+                                placeholder="000000"
+                                required
+                                autocomplete="one-time-code"
+                                pattern="[0-9]{6}"
+                            >
+                            <div class="invalid-feedback">Please enter the 6-digit code.</div>
+                        </div>
+
+                        <!-- Resend OTP -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <small class="text-muted">Didn't receive the code?</small>
+                            <button type="button" class="btn btn-link btn-sm p-0" id="resendOtpBtn">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
+                            </button>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary w-100" id="verifyOtpBtn">
+                            <span class="btn-text">Verify Code</span>
+                            <span class="btn-loader d-none">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                Verifying...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Mock API (for demo mode - load before other scripts) -->
-    <script src="/assets/js/mock-api.js"></script>
     <!-- Auth Module -->
     <script type="module" src="/assets/js/auth.js"></script>
 </body>
