@@ -83,6 +83,8 @@ const App = {
     initNavbar() {
         const user = AuthService.getUser();
         
+
+        
         // Set user info in navbar
         this.updateUserDisplay(user);
 
@@ -136,35 +138,61 @@ const App = {
     /**
      * Update user display in navbar
      */
-    updateUserDisplay(user) {
-        if (!user) return;
+/**
+ * Update user display in navbar
+ */
+updateUserDisplay(user) {
+    if (!user) return;
 
-        // Avatar initials
-        const avatar = document.getElementById('userAvatar');
-        if (avatar) {
-            const initials = this.getInitials(user.name || user.email);
-            avatar.textContent = initials;
+    // Create full name from firstName and lastName if name doesn't exist
+    const fullName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    const displayRole = this.formatRole(user.role);
+
+    // Avatar initials
+    const avatar = document.getElementById('userAvatar');
+    if (avatar) {
+        const initials = this.getInitials(fullName);
+        avatar.textContent = initials;
+    }
+
+    // User name and role
+    const nameEl = document.getElementById('userName');
+    const roleEl = document.getElementById('userRole');
+    const dropdownName = document.getElementById('dropdownUserName');
+    const dropdownEmail = document.getElementById('dropdownUserEmail');
+
+    if (nameEl) nameEl.textContent = fullName;
+    if (roleEl) roleEl.textContent = displayRole;
+    if (dropdownName) dropdownName.textContent = fullName;
+    if (dropdownEmail) dropdownEmail.textContent = user.email || '';
+
+    // Show admin section in sidebar if user is admin
+    if (AuthService.isAdmin()) {
+        const adminSection = document.getElementById('adminSection');
+        if (adminSection) {
+            adminSection.style.display = 'block';
         }
+    }
+},
 
-        // User name and role
-        const nameEl = document.getElementById('userName');
-        const roleEl = document.getElementById('userRole');
-        const dropdownName = document.getElementById('dropdownUserName');
-        const dropdownEmail = document.getElementById('dropdownUserEmail');
-
-        if (nameEl) nameEl.textContent = user.name || 'User';
-        if (roleEl) roleEl.textContent = this.formatRole(user.role);
-        if (dropdownName) dropdownName.textContent = user.name || 'User';
-        if (dropdownEmail) dropdownEmail.textContent = user.email || '';
-
-        // Show admin section in sidebar if user is admin
-        if (AuthService.isAdmin()) {
-            const adminSection = document.getElementById('adminSection');
-            if (adminSection) {
-                adminSection.style.display = 'block';
-            }
-        }
-    },
+/**
+ * Format role for display
+ */
+formatRole(role) {
+    if (!role) return 'User';
+    
+    const roleMap = {
+        'ADMIN': 'Administrator',
+        'DOCTOR': 'Professor',
+        'STUDENT': 'Student',
+        'TECHNICIAN': 'IT Technician',
+        'MANAGER': 'IT Manager',
+        'USER': 'User'
+    };
+    
+    // Handle both uppercase and lowercase
+    return roleMap[role.toUpperCase()] || role;
+},
 
     /**
      * Get initials from a name
@@ -179,21 +207,7 @@ const App = {
         return name.substring(0, 2).toUpperCase();
     },
 
-    /**
-     * Format role for display
-     */
-    formatRole(role) {
-        if (!role) return 'User';
-        
-        const roleMap = {
-            admin: 'Administrator',
-            technician: 'IT Technician',
-            manager: 'IT Manager',
-            user: 'User'
-        };
-        
-        return roleMap[role.toLowerCase()] || role;
-    },
+   
 
     /**
      * Initialize sidebar functionality

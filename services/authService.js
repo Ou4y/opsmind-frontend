@@ -100,9 +100,21 @@ const AuthService = {
                 });
             } else if (purpose === 'LOGIN') {
                 // Login OTP verified - store auth data
-                if (data.data.token) {
+                if (data.data.token && data.data.user) {
+                    const userData = data.data.user;
+                    
+                    // Ensure role is stored in uppercase format
+                    if (userData.role) {
+                        userData.role = userData.role.toUpperCase();
+                    }
+                    
+                    // Combine firstName and lastName into name property for easy access
+                    if (userData.firstName && userData.lastName) {
+                        userData.name = `${userData.firstName} ${userData.lastName}`;
+                    }
+                    
                     this.setToken(data.data.token);
-                    this.setUser(data.data.user);
+                    this.setUser(userData);
                     this.clearPendingVerification();
                 }
             }
@@ -280,7 +292,21 @@ const AuthService = {
     getUser() {
         try {
             const userData = localStorage.getItem(USER_KEY);
-            return userData ? JSON.parse(userData) : null;
+            if (!userData) return null;
+            
+            const user = JSON.parse(userData);
+            
+            // Ensure role is in uppercase format (fix for old data)
+            if (user.role && typeof user.role === 'string') {
+                user.role = user.role.toUpperCase();
+            }
+            
+            // Ensure name property exists
+            if (!user.name && user.firstName && user.lastName) {
+                user.name = `${user.firstName} ${user.lastName}`;
+            }
+            
+            return user;
         } catch {
             return null;
         }
