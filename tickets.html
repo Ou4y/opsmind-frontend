@@ -399,8 +399,15 @@
                             <!-- Building -->
                             <div class="col-12 col-md-6">
                                 <label for="newTicketBuilding" class="form-label">Building <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="newTicketBuilding" required placeholder="e.g., Building A">
-                                <div class="invalid-feedback">Please enter the building.</div>
+                                <select class="form-select" id="newTicketBuilding" required>
+                                    <option value="">Select Building</option>
+                                    <option value="Main">Main</option>
+                                    <option value="S">S</option>
+                                    <option value="N">N</option>
+                                    <option value="R">R</option>
+                                    <option value="K">K</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a building.</div>
                             </div>
                             <!-- Room -->
                             <div class="col-12 col-md-6">
@@ -557,8 +564,15 @@
                         <!-- Building -->
                         <div class="col-12 col-md-6">
                             <label for="updateTicketBuilding" class="form-label">Building <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="updateTicketBuilding" name="building" required placeholder="e.g., Building A">
-                            <div class="invalid-feedback">Please enter the building.</div>
+                            <select class="form-select" id="updateTicketBuilding" name="building" required>
+                                <option value="">Select Building</option>
+                                <option value="Main">Main</option>
+                                <option value="S">S</option>
+                                <option value="N">N</option>
+                                <option value="R">R</option>
+                                <option value="K">K</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a building.</div>
                         </div>
                         
                         <!-- Room -->
