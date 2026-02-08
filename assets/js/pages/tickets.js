@@ -258,13 +258,33 @@ async function loadTickets() {
     try {
         // Calculate offset for backend pagination
         const offset = (state.currentPage - 1) * state.pageSize;
-        const response = await TicketService.getTickets({
-            limit: state.pageSize,
-            offset,
-            ...state.filters,
-            sortBy: state.sortBy,
-            sortOrder: state.sortOrder
-        });
+        
+        // Get current user to determine which endpoint to use
+        const currentUser = AuthService.getUser();
+        const isAdmin = AuthService.isAdmin();
+        
+        let response;
+        
+        // Regular users: only fetch their own tickets
+        // Admins: fetch all tickets
+        if (!isAdmin && currentUser?.id) {
+            // Use requester-specific endpoint for regular users
+            response = await TicketService.getTicketsByRequester(currentUser.id, {
+                limit: state.pageSize,
+                offset,
+                status: state.filters.status,
+                priority: state.filters.priority
+            });
+        } else {
+            // Use general endpoint for admins
+            response = await TicketService.getTickets({
+                limit: state.pageSize,
+                offset,
+                ...state.filters,
+                sortBy: state.sortBy,
+                sortOrder: state.sortOrder
+            });
+        }
 
         // Handle response: support array or object
         let ticketsArr = [];
@@ -864,18 +884,47 @@ function openCreateModal() {
 function openUpdateModal(ticketId) {
     const ticket = state.tickets.find(t => t.id === ticketId);
     if (!ticket) return;
+    
     state.selectedTicket = ticketId;
-    // Fill update modal fields with ticket values
-    const subjectInput = document.getElementById('updateTicketSubject');
+    
+    // Fill update modal fields with ticket values (matching backend schema)
+    const titleInput = document.getElementById('updateTicketTitle');
     const descriptionInput = document.getElementById('updateTicketDescription');
     const typeInput = document.getElementById('updateTicketType');
-    const priorityInput = document.getElementById('updateTicketPriority');
-    const assigneeInput = document.getElementById('updateTicketAssignee');
-    if (subjectInput) subjectInput.value = ticket.title || '';
+    const statusInput = document.getElementById('updateTicketStatus');
+    const buildingInput = document.getElementById('updateTicketBuilding');
+    const roomInput = document.getElementById('updateTicketRoom');
+    const resolutionInput = document.getElementById('updateResolutionSummary');
+    
+    if (titleInput) titleInput.value = ticket.title || '';
     if (descriptionInput) descriptionInput.value = ticket.description || '';
-    if (typeInput) typeInput.value = ticket.type || 'INCIDENT';
-    if (priorityInput) priorityInput.value = ticket.priority || 'LOW';
-    if (assigneeInput) assigneeInput.value = ticket.assignee || '';
+    if (typeInput) typeInput.value = ticket.type_of_request || ticket.type || 'INCIDENT';
+    if (statusInput) statusInput.value = ticket.status || 'OPEN';
+    if (buildingInput) buildingInput.value = ticket.building || '';
+    if (roomInput) roomInput.value = ticket.room || '';
+    if (resolutionInput && ticket.resolution_summary) {
+        resolutionInput.value = ticket.resolution_summary;
+    }
+    
+    // Show/hide resolution summary based on status
+    const resolutionContainer = document.getElementById('updateResolutionSummaryContainer');
+    if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
+        resolutionContainer.style.display = 'block';
+    } else {
+        resolutionContainer.style.display = 'none';
+    }
+    
+    // Add event listener for status change
+    if (statusInput) {
+        statusInput.addEventListener('change', function(e) {
+            if (e.target.value === 'RESOLVED' || e.target.value === 'CLOSED') {
+                resolutionContainer.style.display = 'block';
+            } else {
+                resolutionContainer.style.display = 'none';
+            }
+        });
+    }
+    
     // Show update modal
     const modal = document.getElementById('updateTicketModal');
     if (!modal) return;
@@ -969,41 +1018,86 @@ async function handleCreateTicket(e) {
  * Handle update ticket form submission
  */
 async function handleUpdateTicket(e) {
-    e.preventDefault();
-    const form = e.target;
+    if (e) e.preventDefault();
+    
+    const form = document.getElementById('updateTicketForm');
     if (!UI.validateForm(form)) return;
+    
     const submitBtn = document.getElementById('submitUpdateTicketBtn');
     UI.setButtonLoading(submitBtn, true);
 
-    // Collect form values exactly as backend expects
-    const title = document.getElementById('updateTicketSubject').value.trim();
-    const description = document.getElementById('updateTicketDescription').value.trim();
-    const type = document.getElementById('updateTicketType')?.value || 'INCIDENT';
-    const priority = document.getElementById('updateTicketPriority').value;
-    const assignee = document.getElementById('updateTicketAssignee').value;
     const ticketId = state.selectedTicket;
+    if (!ticketId) {
+        UI.error('No ticket selected');
+        UI.setButtonLoading(submitBtn, false);
+        return;
+    }
 
-    // Guard: backend requires non-empty title/description/type/priority
-    if (!title || !description || !type || !priority) {
+    // Collect form values exactly as backend expects (PATCH /tickets/{id})
+    const title = document.getElementById('updateTicketTitle')?.value.trim();
+    const description = document.getElementById('updateTicketDescription')?.value.trim();
+    const type_of_request = document.getElementById('updateTicketType')?.value;
+    const status = document.getElementById('updateTicketStatus')?.value;
+    const building = document.getElementById('updateTicketBuilding')?.value.trim();
+    const room = document.getElementById('updateTicketRoom')?.value.trim();
+    const resolution_summary = document.getElementById('updateResolutionSummary')?.value.trim();
+
+    // Validate required fields
+    if (!title || !description || !type_of_request || !building || !room) {
         UI.setButtonLoading(submitBtn, false);
         UI.error('All required fields must be filled');
         return;
     }
 
-    // Build ticketData exactly as backend expects
-    const ticketData = {
+    // Validate status transitions
+    const ticket = state.tickets.find(t => t.id === ticketId);
+    if (ticket && status && status !== ticket.status) {
+        const validTransitions = {
+            'OPEN': ['IN_PROGRESS'],
+            'IN_PROGRESS': ['RESOLVED'],
+            'RESOLVED': ['CLOSED']
+        };
+        
+        const allowedStates = validTransitions[ticket.status];
+        if (allowedStates && !allowedStates.includes(status)) {
+            UI.setButtonLoading(submitBtn, false);
+            UI.error(`Invalid transition. From ${ticket.status} you can only go to: ${allowedStates.join(', ')}`);
+            return;
+        }
+    }
+
+    // Build update data - only include fields that backend accepts
+    const updateData = {
         title,
         description,
-        type,
-        priority,
-        assignee: assignee || undefined // send undefined if unassigned
+        type_of_request,
+        building,
+        room
     };
 
+    // Only include status if it's changed
+    if (status && status !== ticket?.status) {
+        updateData.status = status;
+    }
+
+    // Include resolution_summary if status is RESOLVED or CLOSED
+    if (resolution_summary && (status === 'RESOLVED' || status === 'CLOSED')) {
+        updateData.resolution_summary = resolution_summary;
+    }
+
     try {
-        await TicketService.updateTicket(ticketId, ticketData);
+        await TicketService.updateTicket(ticketId, updateData);
         UI.success('Ticket updated successfully');
+        
+        // Close modals
         bootstrap.Modal.getInstance(document.getElementById('updateTicketModal'))?.hide();
+        bootstrap.Modal.getInstance(document.getElementById('confirmUpdateTicketModal'))?.hide();
+        
+        // Reset form
+        form.reset();
         UI.resetFormValidation(form);
+        
+        // Reload tickets
         await loadTickets();
     } catch (error) {
         console.error('Failed to update ticket:', error);
