@@ -108,10 +108,16 @@ const TicketService = {
     /**
      * Create a new ticket
      * @param {Object} ticketData - Ticket data
+     * @param {string} ticketData.title - Ticket title
+     * @param {string} ticketData.description - Ticket description
+     * @param {string} ticketData.type_of_request - Type: INCIDENT, SERVICE_REQUEST, MAINTENANCE
+     * @param {string} ticketData.building - Building location
+     * @param {string} ticketData.room - Room number
+     * @param {string} ticketData.requester_id - Requester user ID
      * @returns {Promise<Object>} Created ticket
      */
     async createTicket(ticketData) {
-        // Pass ticketData as-is, no normalization
+        // Backend expects: title, description, type_of_request, building, room, requester_id
         const response = await fetch(`${API_BASE_URL}/tickets`, {
             method: 'POST',
             headers: {
@@ -127,18 +133,23 @@ const TicketService = {
     /**
      * Update ticket status
      * @param {string} ticketId - Ticket ID
-     * @param {string} status - New status
-     * @param {string} comment - Optional status change comment
+     * @param {string} status - New status (OPEN, IN_PROGRESS, RESOLVED, CLOSED)
+     * @param {string} resolution_summary - Optional resolution summary
      * @returns {Promise<Object>} Updated ticket
      */
-    async updateStatus(ticketId, status, comment = '') {
-        const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/status`, {
+    async updateStatus(ticketId, status, resolution_summary = '') {
+        const updateData = { status };
+        if (resolution_summary) {
+            updateData.resolution_summary = resolution_summary;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 ...AuthService.getAuthHeaders()
             },
-            body: JSON.stringify({ status, comment })
+            body: JSON.stringify(updateData)
         });
 
         return handleResponse(response);
@@ -186,6 +197,56 @@ const TicketService = {
             const error = await response.json().catch(() => ({}));
             throw new Error(error.message || 'Failed to delete ticket');
         }
+    },
+
+    /**
+     * Escalate a ticket to a higher support level
+     * @param {string} ticketId - Ticket ID
+     * @param {Object} escalationData - Escalation data
+     * @param {string} escalationData.from_level - Current level (L1, L2, L3, L4)
+     * @param {string} escalationData.to_level - Target level (L1, L2, L3, L4)
+     * @param {string} escalationData.reason - Reason for escalation
+     * @returns {Promise<Object>} Updated ticket
+     */
+    async escalateTicket(ticketId, escalationData) {
+        const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/escalate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...AuthService.getAuthHeaders()
+            },
+            body: JSON.stringify(escalationData)
+        });
+
+        return handleResponse(response);
+    },
+
+    /**
+     * Get tickets by requester
+     * @param {string} requesterId - Requester user ID
+     * @param {Object} options - Query options
+     * @returns {Promise<Array>} Tickets list
+     */
+    async getTicketsByRequester(requesterId, options = {}) {
+        const params = new URLSearchParams();
+        
+        if (options.status) params.append('status', options.status);
+        if (options.priority) params.append('priority', options.priority);
+        if (options.limit) params.append('limit', options.limit);
+        if (options.offset) params.append('offset', options.offset);
+
+        const queryString = params.toString();
+        const url = `${API_BASE_URL}/tickets/requester/${requesterId}${queryString ? '?' + queryString : ''}`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                ...AuthService.getAuthHeaders()
+            }
+        });
+
+        return handleResponse(response);
     },
 
     /**

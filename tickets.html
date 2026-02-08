@@ -66,11 +66,10 @@
                                 <label for="statusFilter" class="form-label">Status</label>
                                 <select class="form-select" id="statusFilter">
                                     <option value="">All Statuses</option>
-                                    <option value="open">Open</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="closed">Closed</option>
+                                    <option value="OPEN">Open</option>
+                                    <option value="IN_PROGRESS">In Progress</option>
+                                    <option value="RESOLVED">Resolved</option>
+                                    <option value="CLOSED">Closed</option>
                                 </select>
                             </div>
 
@@ -79,24 +78,20 @@
                                 <label for="priorityFilter" class="form-label">Priority</label>
                                 <select class="form-select" id="priorityFilter">
                                     <option value="">All Priorities</option>
-                                    <option value="critical">Critical</option>
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="LOW">Low</option>
                                 </select>
                             </div>
 
-                            <!-- Category Filter -->
+                            <!-- Type Filter -->
                             <div class="col-6 col-md-4 col-lg-2">
-                                <label for="categoryFilter" class="form-label">Category</label>
-                                <select class="form-select" id="categoryFilter">
-                                    <option value="">All Categories</option>
-                                    <option value="hardware">Hardware</option>
-                                    <option value="software">Software</option>
-                                    <option value="network">Network</option>
-                                    <option value="security">Security</option>
-                                    <option value="access">Access Request</option>
-                                    <option value="other">Other</option>
+                                <label for="typeFilter" class="form-label">Type</label>
+                                <select class="form-select" id="typeFilter">
+                                    <option value="">All Types</option>
+                                    <option value="INCIDENT">Incident</option>
+                                    <option value="SERVICE_REQUEST">Service Request</option>
+                                    <option value="MAINTENANCE">Maintenance</option>
                                 </select>
                             </div>
 
@@ -279,8 +274,24 @@
                                     <p class="mb-0 fw-medium" id="ticketRequester"></p>
                                 </div>
                                 <div class="col-6 col-md-3">
-                                    <label class="text-muted small">Assigned To</label>
-                                    <p class="mb-0 fw-medium" id="ticketAssignee"></p>
+                                    <label class="text-muted small">Assigned Level</label>
+                                    <p class="mb-0 fw-medium" id="ticketAssignedLevel"></p>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="text-muted small">Support Level</label>
+                                    <p class="mb-0 fw-medium" id="ticketSupportLevel"></p>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="text-muted small">Escalation Count</label>
+                                    <p class="mb-0 fw-medium" id="ticketEscalationCount"></p>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="text-muted small">Building</label>
+                                    <p class="mb-0" id="ticketBuilding"></p>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="text-muted small">Room</label>
+                                    <p class="mb-0" id="ticketRoom"></p>
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <label class="text-muted small">Created</label>
@@ -318,20 +329,24 @@
                             <div class="status-change-section">
                                 <h6 class="mb-3">Update Status</h6>
                                 <div class="row g-2">
-                                    <div class="col-12 col-md-6">
+                                    <div class="col-12 col-md-8">
                                         <select class="form-select" id="newStatusSelect">
                                             <option value="">Select new status...</option>
-                                            <option value="open">Open</option>
-                                            <option value="in_progress">In Progress</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="resolved">Resolved</option>
-                                            <option value="closed">Closed</option>
+                                            <option value="OPEN">Open</option>
+                                            <option value="IN_PROGRESS">In Progress</option>
+                                            <option value="RESOLVED">Resolved</option>
+                                            <option value="CLOSED">Closed</option>
                                         </select>
+                                        <small class="text-muted">Valid transitions: OPEN → IN_PROGRESS → RESOLVED → CLOSED</small>
                                     </div>
-                                    <div class="col-12 col-md-6">
+                                    <div class="col-12 col-md-4">
                                         <button class="btn btn-primary w-100" id="updateStatusBtn">
                                             <i class="bi bi-check-lg me-1"></i> Update Status
                                         </button>
+                                    </div>
+                                    <div class="col-12" id="resolutionSummaryContainer" style="display: none;">
+                                        <label for="resolutionSummary" class="form-label">Resolution Summary</label>
+                                        <textarea class="form-control" id="resolutionSummary" rows="3" placeholder="Enter resolution details..."></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -371,32 +386,32 @@
                                 <select class="form-select" id="newTicketType" required>
                                     <option value="INCIDENT">Incident</option>
                                     <option value="SERVICE_REQUEST">Service Request</option>
-                                    <option value="PROBLEM">Problem</option>
+                                    <option value="MAINTENANCE">Maintenance</option>
                                 </select>
                                 <div class="invalid-feedback">Please select a type.</div>
                             </div>
-                            <!-- Priority -->
+                            <!-- Priority (Display only - system assigned) -->
                             <div class="col-12 col-md-6">
-                                <label for="newTicketPriority" class="form-label">Priority <span class="text-danger">*</span></label>
-                                <select class="form-select" id="newTicketPriority" required>
-                                    <option value="LOW">Low</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="HIGH">High</option>
-                                    <option value="CRITICAL">Critical</option>
-                                </select>
-                                <div class="invalid-feedback">Please select a priority.</div>
+                                <label for="newTicketPriority" class="form-label">Priority</label>
+                                <input type="text" class="form-control" id="newTicketPriority" value="System Assigned" disabled>
+                                <small class="text-muted">Priority will be automatically assigned</small>
                             </div>
+                            <!-- Building -->
                             <div class="col-12 col-md-6">
-                                <label for="newTicketAssignee" class="form-label">Assign To</label>
-                                <select class="form-select" id="newTicketAssignee">
-                                    <option value="">Unassigned</option>
-                                    <!-- Options will be loaded dynamically -->
-                                </select>
+                                <label for="newTicketBuilding" class="form-label">Building <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="newTicketBuilding" required placeholder="e.g., Building A">
+                                <div class="invalid-feedback">Please enter the building.</div>
+                            </div>
+                            <!-- Room -->
+                            <div class="col-12 col-md-6">
+                                <label for="newTicketRoom" class="form-label">Room <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="newTicketRoom" required placeholder="e.g., Room 101">
+                                <div class="invalid-feedback">Please enter the room number.</div>
                             </div>
                             <!-- Description -->
                             <div class="col-12">
                                 <label for="newTicketDescription" class="form-label">Description <span class="text-danger">*</span></label>
-                                <textarea class="form-control" id="newTicketDescription" rows="5" required></textarea>
+                                <textarea class="form-control" id="newTicketDescription" rows="5" required placeholder="Please describe the issue in detail..."></textarea>
                                 <div class="invalid-feedback">Please provide a description.</div>
                             </div>
                         </div>

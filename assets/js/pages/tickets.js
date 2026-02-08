@@ -30,7 +30,7 @@ const state = {
         search: '',
         status: '',
         priority: '',
-        category: '',
+        type_of_request: '',
         dateRange: ''
     },
     sortBy: 'created',
@@ -110,12 +110,18 @@ function setupEventListeners() {
     }, 300));
 
     // Filter selects
-    const filterIds = ['statusFilter', 'priorityFilter', 'categoryFilter', 'dateFilter'];
+    const filterIds = ['statusFilter', 'priorityFilter', 'typeFilter', 'dateFilter'];
     filterIds.forEach(id => {
         const el = document.getElementById(id);
         el?.addEventListener('change', (e) => {
-            const filterName = id.replace('Filter', '');
-            state.filters[filterName === 'date' ? 'dateRange' : filterName] = e.target.value;
+            const filterMap = {
+                'statusFilter': 'status',
+                'priorityFilter': 'priority',
+                'typeFilter': 'type_of_request',
+                'dateFilter': 'dateRange'
+            };
+            const filterKey = filterMap[id];
+            state.filters[filterKey] = e.target.value;
             state.currentPage = 1;
             loadTickets();
         });
@@ -200,7 +206,7 @@ function clearFilters() {
         search: '',
         status: '',
         priority: '',
-        category: '',
+        type_of_request: '',
         dateRange: ''
     };
     state.currentPage = 1;
@@ -209,11 +215,11 @@ function clearFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('statusFilter').value = '';
     document.getElementById('priorityFilter').value = '';
-    document.getElementById('categoryFilter').value = '';
+    document.getElementById('typeFilter').value = '';
     document.getElementById('dateFilter').value = '';
 
     // Update URL
-    Router.updateQueryParams({ status: null, priority: null, category: null });
+    Router.updateQueryParams({ status: null, priority: null, type: null });
 
     loadTickets();
 }
@@ -617,18 +623,44 @@ function populateTicketModal(ticket) {
     priorityBadge.className = `badge ${UI.getPriorityBadgeClass(ticket.priority)}`;
     priorityBadge.textContent = formatPriority(ticket.priority);
 
-    // Category badge
-    document.getElementById('ticketCategoryBadge').textContent = formatCategory(ticket.category);
+    // Type badge (replaces category)
+    const typeBadge = document.getElementById('ticketCategoryBadge');
+    typeBadge.textContent = formatType(ticket.type_of_request || ticket.type);
 
     // Details
-    document.getElementById('ticketRequester').textContent = ticket.requesterName || ticket.requester;
-    document.getElementById('ticketAssignee').textContent = ticket.assignee || 'Unassigned';
-    document.getElementById('ticketCreatedAt').textContent = UI.formatDateTime(ticket.createdAt);
-    document.getElementById('ticketUpdatedAt').textContent = UI.formatDateTime(ticket.updatedAt);
+    document.getElementById('ticketRequester').textContent = ticket.requester_id || ticket.requesterName || ticket.requester || 'Unknown';
+    document.getElementById('ticketAssignedLevel').textContent = ticket.assigned_to_level || 'L1';
+    document.getElementById('ticketSupportLevel').textContent = ticket.support_level || 'L1';
+    document.getElementById('ticketEscalationCount').textContent = ticket.escalation_count || 0;
+    document.getElementById('ticketBuilding').textContent = ticket.building || 'N/A';
+    document.getElementById('ticketRoom').textContent = ticket.room || 'N/A';
+    document.getElementById('ticketCreatedAt').textContent = UI.formatDateTime(ticket.created_at || ticket.createdAt);
+    document.getElementById('ticketUpdatedAt').textContent = UI.formatDateTime(ticket.updated_at || ticket.updatedAt);
     document.getElementById('ticketDescription').textContent = ticket.description || 'No description provided.';
 
     // Set current status in dropdown
     document.getElementById('newStatusSelect').value = ticket.status;
+    
+    // Show/hide resolution summary field based on status
+    const resolutionContainer = document.getElementById('resolutionSummaryContainer');
+    const resolutionTextarea = document.getElementById('resolutionSummary');
+    if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
+        resolutionContainer.style.display = 'block';
+        if (ticket.resolution_summary) {
+            resolutionTextarea.value = ticket.resolution_summary;
+        }
+    } else {
+        resolutionContainer.style.display = 'none';
+    }
+    
+    // Listen for status changes to show/hide resolution field
+    document.getElementById('newStatusSelect').addEventListener('change', function(e) {
+        if (e.target.value === 'RESOLVED' || e.target.value === 'CLOSED') {
+            resolutionContainer.style.display = 'block';
+        } else {
+            resolutionContainer.style.display = 'none';
+        }
+    });
 }
 
 /**
@@ -672,6 +704,7 @@ async function loadAIRecommendations(ticketId) {
  */
 async function handleStatusUpdate() {
     const newStatus = document.getElementById('newStatusSelect').value;
+    const resolutionSummary = document.getElementById('resolutionSummary')?.value || '';
     const ticketId = state.selectedTicket;
 
     if (!newStatus || !ticketId) {
@@ -679,20 +712,38 @@ async function handleStatusUpdate() {
         return;
     }
 
+    // Validate state transition
+    const ticket = state.tickets.find(t => t.id === ticketId);
+    if (ticket) {
+        const validTransitions = {
+            'OPEN': ['IN_PROGRESS'],
+            'IN_PROGRESS': ['RESOLVED'],
+            'RESOLVED': ['CLOSED']
+        };
+        
+        const allowedStates = validTransitions[ticket.status];
+        if (allowedStates && !allowedStates.includes(newStatus)) {
+            UI.warning(`Invalid transition. From ${ticket.status} you can only go to: ${allowedStates.join(', ')}`);
+            return;
+        }
+    }
+
     const btn = document.getElementById('updateStatusBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
 
     try {
-        await TicketService.updateStatus(ticketId, newStatus);
+        await TicketService.updateStatus(ticketId, newStatus, resolutionSummary);
         
         UI.success('Ticket status updated');
         
         // Update local data
-        const ticket = state.tickets.find(t => t.id === ticketId);
         if (ticket) {
             ticket.status = newStatus;
-            ticket.updatedAt = new Date();
+            ticket.updated_at = new Date();
+            if (resolutionSummary) {
+                ticket.resolution_summary = resolutionSummary;
+            }
         }
         
         // Update modal display
@@ -704,7 +755,7 @@ async function handleStatusUpdate() {
         renderTickets();
     } catch (error) {
         console.error('Failed to update status:', error);
-        UI.error('Failed to update ticket status');
+        UI.error(error.message || 'Failed to update ticket status');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Update Status';
@@ -873,14 +924,16 @@ async function handleCreateTicket(e) {
     // Collect form values exactly as backend expects
     const title = document.getElementById('newTicketSubject').value.trim();
     const description = document.getElementById('newTicketDescription').value.trim();
-    const type = document.getElementById('newTicketType')?.value || 'INCIDENT';
-    const priority = document.getElementById('newTicketPriority').value;
+    const type_of_request = document.getElementById('newTicketType')?.value || 'INCIDENT';
+    const building = document.getElementById('newTicketBuilding')?.value.trim();
+    const room = document.getElementById('newTicketRoom')?.value.trim();
+    
+    // Get current user ID as requester_id
     const currentUser = AuthService.getUser?.();
-    const createdByUserId = currentUser?.id || currentUser?.userId || currentUser?.email || '';
-    const assignee = document.getElementById('newTicketAssignee').value;
+    const requester_id = currentUser?.id || currentUser?.userId || currentUser?.email || '';
 
-    // Guard: backend requires non-empty title/description/type/priority/createdByUserId
-    if (!title || !description || !type || !priority || !createdByUserId) {
+    // Guard: backend requires title, description, type_of_request, building, room, requester_id
+    if (!title || !description || !type_of_request || !building || !room || !requester_id) {
         UI.setButtonLoading(submitBtn, false);
         UI.error('All required fields must be filled');
         return;
@@ -890,16 +943,17 @@ async function handleCreateTicket(e) {
     const ticketData = {
         title,
         description,
-        type,
-        priority,
-        createdByUserId,
-        assignee: assignee || undefined // send undefined if unassigned
+        type_of_request,
+        building,
+        room,
+        requester_id
     };
 
     try {
         await TicketService.createTicket(ticketData);
         UI.success('Ticket created successfully');
         bootstrap.Modal.getInstance(document.getElementById('createTicketModal'))?.hide();
+        form.reset();
         UI.resetFormValidation(form);
         state.currentPage = 1;
         await loadTickets();
@@ -1017,11 +1071,20 @@ function formatStatus(status) {
  */
 function formatPriority(priority) {
     if (!priority) return 'Unknown';
-    return priority.charAt(0).toUpperCase() + priority.slice(1);
+    return priority.charAt(0).toUpperCase() + priority.slice(1).toLowerCase();
 }
 
 /**
- * Format category for display
+ * Format type for display
+ */
+function formatType(type) {
+    if (!type) return 'Incident';
+    // Convert SERVICE_REQUEST to Service Request, MAINTENANCE to Maintenance, etc.
+    return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * Format category for display (deprecated, use formatType)
  */
 function formatCategory(category) {
     if (!category) return 'Other';
