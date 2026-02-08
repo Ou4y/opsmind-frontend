@@ -36,6 +36,12 @@ const App = {
         
         console.log('[App] Auth check passed, initializing UI...');
         
+        // Load navbar and sidebar components first
+        await this.loadComponents();
+        
+        // Check for error message from redirect
+        this.checkForErrorMessage();
+        
         // Initialize common functionality
         this.initNavbar();
         this.initSidebar();
@@ -47,6 +53,20 @@ const App = {
         
         // Dispatch event for page-specific scripts
         document.dispatchEvent(new CustomEvent('app:ready'));
+    },
+
+    /**
+     * Check for error message from redirect
+     */
+    checkForErrorMessage() {
+        const errorMessage = sessionStorage.getItem('opsmind_error');
+        if (errorMessage) {
+            sessionStorage.removeItem('opsmind_error');
+            // Show error after a brief delay to ensure UI is ready
+            setTimeout(() => {
+                UI.error(errorMessage);
+            }, 500);
+        }
     },
 
     /**
@@ -71,6 +91,25 @@ const App = {
                 if (sidebarResponse.ok) {
                     sidebarContainer.innerHTML = await sidebarResponse.text();
                 }
+            }
+
+            // Wait a tick for DOM to update
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
+            console.log('[App] Components loaded, checking admin section...');
+            
+            // Show admin section if user is admin
+            if (AuthService.isAdmin()) {
+                const adminSection = document.getElementById('adminSection');
+                console.log('[App] User is admin, adminSection element:', adminSection);
+                if (adminSection) {
+                    adminSection.style.display = 'block';
+                    console.log('[App] Admin section shown');
+                } else {
+                    console.error('[App] Admin section not found in DOM');
+                }
+            } else {
+                console.log('[App] User is not admin');
             }
         } catch (error) {
             console.error('Failed to load components:', error);
@@ -165,14 +204,6 @@ updateUserDisplay(user) {
     if (roleEl) roleEl.textContent = displayRole;
     if (dropdownName) dropdownName.textContent = fullName;
     if (dropdownEmail) dropdownEmail.textContent = user.email || '';
-
-    // Show admin section in sidebar if user is admin
-    if (AuthService.isAdmin()) {
-        const adminSection = document.getElementById('adminSection');
-        if (adminSection) {
-            adminSection.style.display = 'block';
-        }
-    }
 },
 
 /**
@@ -215,7 +246,7 @@ formatRole(role) {
     initSidebar() {
         // Mobile sidebar toggle
         const sidebarToggle = document.getElementById('sidebarToggle');
-        const sidebar = document.getElementById('sidebar-container');
+        const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
         console.log('[App] Sidebar toggle:', sidebarToggle, 'Sidebar:', sidebar);

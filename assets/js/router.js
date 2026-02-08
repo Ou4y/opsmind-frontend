@@ -16,6 +16,15 @@ const Router = {
     // Pages that don't require authentication
     publicPages: ['index.html', '/', ''],
     
+    // Pages that require admin role
+    adminPages: [
+        'users.html',
+        'settings.html',
+        'admin-dashboard.html',
+        'system-logs.html',
+        'admin-reports.html'
+    ],
+    
     // Current page name
     currentPage: '',
 
@@ -35,6 +44,12 @@ const Router = {
         // If on login page and already authenticated, redirect to dashboard
         if (this.isPublicPage() && AuthService.isAuthenticated()) {
             this.redirectToDashboard();
+            return false;
+        }
+
+        // Check if current page requires admin role
+        if (this.isAdminPage() && !AuthService.isAdmin()) {
+            this.redirectToUnauthorized();
             return false;
         }
 
@@ -63,6 +78,39 @@ const Router = {
     },
 
     /**
+     * Check if current page requires admin role
+     * @returns {boolean}
+     */
+    isAdminPage() {
+        return this.adminPages.includes(this.currentPage);
+    },
+
+    /**
+     * Check if user has permission to access a specific page
+     * @param {string} pageName - Page name to check
+     * @returns {boolean}
+     */
+    canAccessPage(pageName) {
+        // Public pages - everyone can access
+        if (this.publicPages.includes(pageName)) {
+            return true;
+        }
+        
+        // Must be authenticated
+        if (!AuthService.isAuthenticated()) {
+            return false;
+        }
+        
+        // Admin pages - only admins can access
+        if (this.adminPages.includes(pageName)) {
+            return AuthService.isAdmin();
+        }
+        
+        // All other pages - authenticated users can access
+        return true;
+    },
+
+    /**
      * Redirect to login page
      */
     redirectToLogin() {
@@ -87,6 +135,24 @@ const Router = {
         } else {
             window.location.href = 'dashboard.html';
         }
+    },
+
+    /**
+     * Redirect to dashboard with unauthorized message
+     */
+    redirectToUnauthorized() {
+        const user = AuthService.getUser();
+        console.error('[Router] Unauthorized access attempt:', {
+            page: this.currentPage,
+            user: user?.email,
+            role: user?.role,
+            roles: user?.roles,
+            isAdmin: AuthService.isAdmin()
+        });
+        
+        // Store error message in session
+        sessionStorage.setItem('opsmind_error', '⚠️ Access Denied: This page requires administrator privileges.');
+        window.location.href = 'dashboard.html';
     },
 
     /**

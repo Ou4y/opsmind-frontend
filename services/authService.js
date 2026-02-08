@@ -103,15 +103,28 @@ const AuthService = {
                 if (data.data.token && data.data.user) {
                     const userData = data.data.user;
                     
-                    // Ensure role is stored in uppercase format
-                    if (userData.role) {
+                    console.log('[AuthService] Login OTP verified, user data from backend:', userData);
+                    
+                    // Handle both 'role' (string) and 'roles' (array) from backend
+                    if (userData.roles && Array.isArray(userData.roles)) {
+                        console.log('[AuthService] Roles array from backend:', userData.roles);
+                        // Keep roles array as-is, but also set single role for backward compatibility
+                        if (userData.roles.length > 0) {
+                            userData.role = userData.roles[0]; // Set primary role
+                        }
+                    } else if (userData.role) {
+                        // If backend sends single role, convert to uppercase
+                        console.log('[AuthService] Original role:', userData.role);
                         userData.role = userData.role.toUpperCase();
+                        console.log('[AuthService] Role after uppercase:', userData.role);
                     }
                     
                     // Combine firstName and lastName into name property for easy access
                     if (userData.firstName && userData.lastName) {
                         userData.name = `${userData.firstName} ${userData.lastName}`;
                     }
+                    
+                    console.log('[AuthService] Final user data to store:', userData);
                     
                     this.setToken(data.data.token);
                     this.setUser(userData);
@@ -334,7 +347,11 @@ const AuthService = {
      */
     isAdmin() {
         const user = this.getUser();
-        return user?.role === 'ADMIN';
+        // Check both 'role' (string) and 'roles' (array) for backward compatibility
+        const isAdmin = user?.role === 'ADMIN' || 
+                       (Array.isArray(user?.roles) && user.roles.includes('ADMIN'));
+        console.log('[AuthService] isAdmin check - user:', user, 'role:', user?.role, 'roles:', user?.roles, 'isAdmin:', isAdmin);
+        return isAdmin;
     },
 
     /**
@@ -343,7 +360,9 @@ const AuthService = {
      */
     isDoctor() {
         const user = this.getUser();
-        return user?.role === 'DOCTOR';
+        // Check both 'role' (string) and 'roles' (array) for backward compatibility
+        return user?.role === 'DOCTOR' || 
+               (Array.isArray(user?.roles) && user.roles.includes('DOCTOR'));
     },
 
     /**
@@ -352,7 +371,9 @@ const AuthService = {
      */
     isStudent() {
         const user = this.getUser();
-        return user?.role === 'STUDENT';
+        // Check both 'role' (string) and 'roles' (array) for backward compatibility
+        return user?.role === 'STUDENT' || 
+               (Array.isArray(user?.roles) && user.roles.includes('STUDENT'));
     },
 
     /**

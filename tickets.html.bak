@@ -591,6 +591,7 @@
         });
     </script>
     <!-- Mock API (for demo mode - load before other scripts) -->
+    <script src="/assets/js/mock-api.js"></script>
     <!-- App Module -->
     <script type="module" src="/assets/js/app.js"></script>
     <!-- Tickets Page Script -->
