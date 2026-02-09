@@ -110,6 +110,7 @@
                                     <option value="">All Roles</option>
                                     <option value="ADMIN">Administrator</option>
                                     <option value="DOCTOR">Professor</option>
+                                    <option value="TECHNICIAN">Technician</option>
                                     <option value="STUDENT">Student</option>
                                 </select>
                             </div>
@@ -244,11 +245,12 @@
 
                         <!-- Role -->
                         <div class="mb-3">
-                            <label for="userRole" class="form-label">Role <span class="text-danger">*</span></label>
-                            <select class="form-select" id="userRole" required>
+                            <label for="userRoleSelect" class="form-label">Role <span class="text-danger">*</span></label>
+                            <select class="form-select" id="userRoleSelect" name="role" required>
                                 <option value="">Select Role</option>
                                 <option value="ADMIN">Administrator</option>
                                 <option value="DOCTOR">Professor</option>
+                                <option value="TECHNICIAN">Technician</option>
                                 <option value="STUDENT">Student</option>
                             </select>
                             <div class="invalid-feedback">Please select a role.</div>

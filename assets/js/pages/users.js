@@ -10,10 +10,10 @@
  * - User statistics display
  */
 
-import UserService from '../../services/userService.js';
-import AuthService from '../../services/authService.js';
-import UI from '../ui.js';
-import Router from '../router.js';
+import UserService from '/services/userService.js';
+import AuthService from '/services/authService.js';
+import UI from '/assets/js/ui.js';
+import Router from '/assets/js/router.js';
 
 /**
  * Page state
@@ -102,6 +102,12 @@ function waitForApp() {
  * Set up event listeners
  */
 function setupEventListeners() {
+    console.log('[setupEventListeners] Setting up event listeners...');
+    
+    // Test if userForm exists
+    const userForm = document.getElementById('userForm');
+    console.log('[setupEventListeners] userForm element:', userForm);
+    
     // Search input with debounce
     const searchInput = document.getElementById('searchInput');
     searchInput?.addEventListener('input', UI.debounce((e) => {
@@ -131,7 +137,14 @@ function setupEventListeners() {
     document.getElementById('createFirstUser')?.addEventListener('click', () => openUserModal());
 
     // User form submission
-    document.getElementById('userForm')?.addEventListener('submit', handleSaveUser);
+    const formElement = document.getElementById('userForm');
+    console.log('[setupEventListeners] Attaching submit handler to form:', formElement);
+    if (formElement) {
+        formElement.addEventListener('submit', handleSaveUser);
+        console.log('[setupEventListeners] Submit handler attached successfully');
+    } else {
+        console.error('[setupEventListeners] userForm element not found!');
+    }
 
     // Delete confirmation
     document.getElementById('confirmDeleteUserBtn')?.addEventListener('click', handleDeleteUser);
@@ -301,11 +314,11 @@ function renderUsers() {
                     <div class="d-flex align-items-center">
                         <div class="user-avatar me-2">${getInitials(fullName)}</div>
                         <div>
-                            <div class="fw-semibold">${UI.escapeHtml(fullName)}</div>
+                            <div class="fw-semibold">${UI.escapeHTML(fullName)}</div>
                         </div>
                     </div>
                 </td>
-                <td>${UI.escapeHtml(user.email)}</td>
+                <td>${UI.escapeHTML(user.email)}</td>
                 <td><span class="badge ${roleBadgeClass}">${roleDisplay}</span></td>
                 <td>${statusBadge}</td>
                 <td>${createdDate}</td>
@@ -376,7 +389,7 @@ function openUserModal(user = null) {
         document.getElementById('userFirstName').value = user.firstName || '';
         document.getElementById('userLastName').value = user.lastName || '';
         document.getElementById('userEmail').value = user.email || '';
-        document.getElementById('userRole').value = user.role || '';
+        document.getElementById('userRoleSelect').value = user.role || '';
         document.getElementById('userVerified').checked = user.isVerified || false;
         
         // Hide password, show verified status
@@ -404,21 +417,55 @@ function openUserModal(user = null) {
 async function handleSaveUser(e) {
     e.preventDefault();
     
+    console.log('[handleSaveUser] Form submitted');
+    
     const form = e.target;
+    
+    // Check role selection first before HTML5 validation
+    const roleElement = document.getElementById('userRoleSelect');
+    console.log('[handleSaveUser] Role element found:', roleElement);
+    console.log('[handleSaveUser] Role element value:', roleElement?.value);
+    console.log('[handleSaveUser] Role element selected index:', roleElement?.selectedIndex);
+    
+    if (roleElement && roleElement.options && roleElement.selectedIndex >= 0) {
+        console.log('[handleSaveUser] Role element selected option:', roleElement.options[roleElement.selectedIndex]);
+    }
+    
+    if (!roleElement) {
+        console.error('[handleSaveUser] Role element not found!');
+        UI.error('⚠️ Form error: Role field not found');
+        return;
+    }
+    
+    if (!roleElement.value || roleElement.value === '') {
+        console.error('[handleSaveUser] No role selected - value is empty');
+        UI.error('⚠️ Please select a role for the user');
+        roleElement.focus();
+        form.classList.add('was-validated');
+        return;
+    }
+    
     if (!form.checkValidity()) {
+        console.log('[handleSaveUser] Form validation failed - HTML5 validation');
         form.classList.add('was-validated');
         return;
     }
 
     const userId = document.getElementById('userId').value;
     const isUpdate = !!userId;
-
+    
     const userData = {
         firstName: document.getElementById('userFirstName').value.trim(),
         lastName: document.getElementById('userLastName').value.trim(),
         email: document.getElementById('userEmail').value.trim(),
-        role: document.getElementById('userRole').value
+        role: roleElement.value
     };
+    
+    console.log('[handleSaveUser] Raw role value from dropdown:', userData.role);
+    console.log('[handleSaveUser] Role element:', roleElement);
+    if (roleElement && roleElement.options) {
+        console.log('[handleSaveUser] Role options:', Array.from(roleElement.options).map(o => ({ value: o.value, text: o.text, selected: o.selected })));
+    }
 
     if (!isUpdate) {
         userData.password = document.getElementById('userPassword').value;
@@ -426,12 +473,22 @@ async function handleSaveUser(e) {
         userData.isVerified = document.getElementById('userVerified').checked;
     }
 
+    console.log('[handleSaveUser] User data collected:', {
+        ...userData,
+        password: userData.password ? '***' : undefined
+    });
+
     // Validate
     const validation = UserService.validateUserData(userData, isUpdate);
+    console.log('[handleSaveUser] Validation result:', validation);
+    
     if (!validation.valid) {
+        console.error('[handleSaveUser] Validation failed:', validation.errors);
         UI.error(validation.errors.join('<br>'));
         return;
     }
+    
+    console.log('[handleSaveUser] Validation passed, proceeding with API call');
 
     // Show loading
     const saveBtn = document.getElementById('saveUserBtn');
@@ -444,7 +501,9 @@ async function handleSaveUser(e) {
             await UserService.updateUser(userId, userData);
             UI.success('User updated successfully');
         } else {
-            await UserService.createUser(userData);
+            console.log('Creating user with data:', userData);
+            const result = await UserService.createUser(userData);
+            console.log('User created successfully:', result);
             UI.success('User created successfully');
         }
 
@@ -453,6 +512,11 @@ async function handleSaveUser(e) {
         await Promise.all([loadUsers(), loadStats()]);
     } catch (error) {
         console.error('Failed to save user:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            userData: userData
+        });
         UI.error(error.message || 'Failed to save user');
     } finally {
         saveBtn.disabled = false;

@@ -97,7 +97,7 @@ const UserService = {
      * @param {string} userData.lastName - Last name
      * @param {string} userData.email - Email address
      * @param {string} userData.password - Password
-     * @param {string} userData.role - User role (ADMIN, DOCTOR, STUDENT)
+     * @param {string} userData.role - User role (ADMIN, DOCTOR, TECHNICIAN, STUDENT)
      * @returns {Promise<Object>} Created user data
      */
     async createUser(userData) {
@@ -111,11 +111,19 @@ const UserService = {
             const data = await response.json();
 
             if (!response.ok) {
+                // Check if endpoint exists
+                if (response.status === 404) {
+                    throw new Error('❌ Backend endpoint not implemented: POST /admin/users. Please ask the backend team to implement this endpoint.');
+                }
                 throw new Error(data.message || 'Failed to create user');
             }
 
             return data;
         } catch (error) {
+            // Handle network errors
+            if (error.message.includes('Failed to fetch')) {
+                throw new Error('❌ Cannot connect to backend server. Make sure the backend is running on http://localhost:3002');
+            }
             console.error('Failed to create user:', error);
             throw error;
         }
@@ -232,11 +240,14 @@ const UserService = {
      */
     validateUserData(userData, isUpdate = false) {
         const errors = [];
+        
+        console.log('[validateUserData] Starting validation:', { userData, isUpdate });
 
         // First name
         if (!isUpdate || userData.firstName !== undefined) {
             if (!userData.firstName || userData.firstName.trim().length === 0) {
                 errors.push('First name is required');
+                console.log('[validateUserData] First name validation failed');
             }
         }
 
@@ -244,31 +255,47 @@ const UserService = {
         if (!isUpdate || userData.lastName !== undefined) {
             if (!userData.lastName || userData.lastName.trim().length === 0) {
                 errors.push('Last name is required');
+                console.log('[validateUserData] Last name validation failed');
             }
         }
 
         // Email
         if (!isUpdate || userData.email !== undefined) {
-            if (!userData.email || !AuthService.validateMIUEmail(userData.email)) {
+            const emailValid = AuthService.validateMIUEmail(userData.email);
+            console.log('[validateUserData] Email validation:', { email: userData.email, valid: emailValid });
+            if (!userData.email || !emailValid) {
                 errors.push('Valid MIU email is required (@miuegypt.edu.eg)');
+                console.log('[validateUserData] Email validation failed');
             }
         }
 
         // Password (only required for create)
-        if (!isUpdate && userData.password) {
-            const passwordValidation = AuthService.validatePassword(userData.password);
-            if (!passwordValidation.valid) {
-                errors.push(...passwordValidation.errors);
+        if (!isUpdate) {
+            if (!userData.password || userData.password.trim().length === 0) {
+                errors.push('Password is required');
+                console.log('[validateUserData] Password is missing');
+            } else {
+                const passwordValidation = AuthService.validatePassword(userData.password);
+                console.log('[validateUserData] Password validation:', passwordValidation);
+                if (!passwordValidation.valid) {
+                    errors.push(...passwordValidation.errors);
+                    console.log('[validateUserData] Password validation failed');
+                }
             }
         }
 
         // Role
         if (!isUpdate || userData.role !== undefined) {
-            const validRoles = ['ADMIN', 'DOCTOR', 'STUDENT'];
-            if (!userData.role || !validRoles.includes(userData.role.toUpperCase())) {
-                errors.push('Valid role is required (ADMIN, DOCTOR, or STUDENT)');
+            const validRoles = ['ADMIN', 'DOCTOR', 'TECHNICIAN', 'STUDENT'];
+            const roleValid = userData.role && validRoles.includes(userData.role.toUpperCase());
+            console.log('[validateUserData] Role validation:', { role: userData.role, valid: roleValid });
+            if (!roleValid) {
+                errors.push('Valid role is required (ADMIN, DOCTOR, TECHNICIAN, or STUDENT)');
+                console.log('[validateUserData] Role validation failed');
             }
         }
+
+        console.log('[validateUserData] Validation complete:', { valid: errors.length === 0, errors });
 
         return {
             valid: errors.length === 0,
@@ -285,6 +312,7 @@ const UserService = {
         const roleMap = {
             'ADMIN': 'Administrator',
             'DOCTOR': 'Professor',
+            'TECHNICIAN': 'Technician',
             'STUDENT': 'Student'
         };
         return roleMap[role?.toUpperCase()] || role;
@@ -299,6 +327,7 @@ const UserService = {
         const badgeMap = {
             'ADMIN': 'bg-danger',
             'DOCTOR': 'bg-warning text-dark',
+            'TECHNICIAN': 'bg-success',
             'STUDENT': 'bg-info'
         };
         return badgeMap[role?.toUpperCase()] || 'bg-secondary';
