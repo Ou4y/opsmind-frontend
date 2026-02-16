@@ -1,20 +1,20 @@
 /**
- * OpsMind - AI Service (via Ollama Local)
+ * OpsMind - AI Service
  * 
- * Handles integration with Ollama running locally
+ * Handles integration with AI backend services
  * for natural language processing and intelligent chatbot responses.
  */
 
-// Ollama Configuration
-const OLLAMA_API_URL = 'http://localhost:11434/api/chat';
-const MODEL_NAME = 'llama3.2'; // Change to your installed model: llama2, llama3, mistral, codellama, etc.
+// AI Service Configuration
+const AI_API_URL = window.OPSMIND_AI_API_URL || 'http://localhost:8000/api/ai';
+const MODEL_NAME = 'llama3.2';
 
 /**
- * GeminiService - Service for AI integration via Ollama (keeping name for compatibility)
+ * GeminiService - Service for AI integration
  */
 const GeminiService = {
     /**
-     * Generate a response using Ollama running locally
+     * Generate a response using AI backend
      * @param {string} message - User's message
      * @param {Array} conversationHistory - Previous messages for context (optional)
      * @returns {Promise<string>} AI-generated response
@@ -24,7 +24,7 @@ const GeminiService = {
             // Build the conversation context
             const systemContext = this._buildContext(conversationHistory);
             
-            // Prepare messages array for Ollama format
+            // Prepare messages array for AI format
             const messages = [
                 {
                     role: 'system',
@@ -38,7 +38,7 @@ const GeminiService = {
                 }
             ];
 
-            // Prepare the request payload for Ollama
+            // Prepare the request payload
             const requestBody = {
                 model: MODEL_NAME,
                 messages: messages,
@@ -50,11 +50,11 @@ const GeminiService = {
                 }
             };
 
-            console.log('[Ollama] Sending request to local Ollama server...');
-            console.log('[Ollama] Model:', MODEL_NAME);
+            console.log('[AI] Sending request to AI backend...');
+            console.log('[AI] Model:', MODEL_NAME);
 
-            // Make the API request to local Ollama
-            const response = await fetch(OLLAMA_API_URL, {
+            // Make the API request to AI backend
+            const response = await fetch(AI_API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -63,35 +63,35 @@ const GeminiService = {
             });
 
             if (!response.ok) {
-                let errorMessage = `Ollama API error: ${response.statusText}`;
+                let errorMessage = `AI API error: ${response.statusText}`;
                 try {
                     const errorData = await response.json();
                     errorMessage = errorData.error || errorMessage;
-                    console.error('[Ollama] API Error:', errorData);
+                    console.error('[AI] API Error:', errorData);
                 } catch (e) {
-                    console.error('[Ollama] API Error:', response.status, response.statusText);
+                    console.error('[AI] API Error:', response.status, response.statusText);
                 }
                 throw new Error(errorMessage);
             }
 
             const data = await response.json();
-            console.log('[Ollama] Response received:', data);
+            console.log('[AI] Response received:', data);
 
-            // Extract the response text (Ollama format)
-            const aiResponse = data.message?.content;
+            // Extract the response text
+            const aiResponse = data.message?.content || data.response;
             
             if (!aiResponse) {
-                throw new Error('No response generated from Ollama');
+                throw new Error('No response generated from AI backend');
             }
 
             return aiResponse.trim();
 
         } catch (error) {
-            console.error('[Ollama] Error generating response:', error);
+            console.error('[AI] Error generating response:', error);
             
             // Provide helpful error messages
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                throw new Error('Cannot connect to Ollama. Please make sure Ollama is running locally on port 11434. Run: ollama serve');
+                throw new Error('Cannot connect to AI backend. Please make sure the AI service is running.');
             }
             
             throw error;
@@ -99,7 +99,7 @@ const GeminiService = {
     },
 
     /**
-     * Format conversation history for Ollama messages format
+     * Format conversation history for AI messages format
      * @param {Array} conversationHistory - Array of previous messages
      * @returns {Array} Formatted messages array
      */
