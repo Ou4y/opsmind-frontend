@@ -14,6 +14,7 @@ import UI from '/assets/js/ui.js';
 import TicketService from '/services/ticketService.js';
 import WorkflowService from '/services/workflowService.js';
 import AIService from '/services/aiService.js';
+import GeminiService from '/services/geminiService.js';
 import Router from '/assets/js/router.js';
 import AuthService from '/services/authService.js';
 
@@ -136,6 +137,15 @@ function setupEventListeners() {
 
     // Create ticket form
     document.getElementById('createTicketForm')?.addEventListener('submit', handleCreateTicket);
+
+    // AI Help button
+    document.getElementById('aiHelpBtn')?.addEventListener('click', handleAIHelp);
+    
+    // Proceed with ticket creation from AI Help modal
+    document.getElementById('proceedWithTicketBtn')?.addEventListener('click', () => {
+        bootstrap.Modal.getInstance(document.getElementById('aiHelpModal'))?.hide();
+        // Focus back on create modal
+    });
 
     // View toggle buttons
     document.getElementById('tableViewBtn')?.addEventListener('click', () => setViewMode('table'));
@@ -1012,6 +1022,111 @@ async function handleCreateTicket(e) {
     } finally {
         UI.setButtonLoading(submitBtn, false);
     }
+}
+
+/**
+ * Handle AI Help button click
+ */
+async function handleAIHelp() {
+    // Collect current form values
+    const title = document.getElementById('newTicketSubject')?.value.trim() || '';
+    const description = document.getElementById('newTicketDescription')?.value.trim() || '';
+    const type = document.getElementById('newTicketType')?.value || '';
+    const building = document.getElementById('newTicketBuilding')?.value || '';
+    const room = document.getElementById('newTicketRoom')?.value || '';
+    
+    // Check if user has filled in at least title and description
+    if (!title || !description) {
+        UI.warning('Please fill in at least the Title and Description fields to get AI suggestions.');
+        return;
+    }
+    
+    // Show AI Help modal
+    const aiHelpModal = new bootstrap.Modal(document.getElementById('aiHelpModal'));
+    aiHelpModal.show();
+    
+    // Show loading state
+    document.getElementById('aiHelpLoading').classList.remove('d-none');
+    document.getElementById('aiHelpContent').classList.add('d-none');
+    document.getElementById('aiHelpError').classList.add('d-none');
+    
+    // Show loading on button
+    const aiHelpBtn = document.getElementById('aiHelpBtn');
+    UI.setButtonLoading(aiHelpBtn, true);
+    
+    try {
+        // Build detailed prompt for AI
+        const prompt = `I am creating an IT support ticket with the following details:
+
+**Ticket Title:** ${title}
+
+**Description:** ${description}
+
+${type ? `**Type:** ${type}` : ''}
+${building ? `**Building:** ${building}` : ''}
+${room ? `**Room:** ${room}` : ''}
+
+As an IT support expert, please provide:
+1. A brief analysis of the issue
+2. Detailed troubleshooting steps the user can try before submitting the ticket
+3. What information they should gather if the issue persists
+4. Estimated urgency/priority of this issue
+
+Format your response with clear headings and numbered steps. Be specific and actionable.`;
+
+        // Call Gemini AI
+        const aiResponse = await GeminiService.generateResponse(prompt, []);
+        
+        // Hide loading, show content
+        document.getElementById('aiHelpLoading').classList.add('d-none');
+        document.getElementById('aiHelpContent').classList.remove('d-none');
+        
+        // Format and display the AI response
+        const formattedResponse = formatAIResponse(aiResponse);
+        document.getElementById('aiSuggestionsText').innerHTML = formattedResponse;
+        
+    } catch (error) {
+        console.error('[AI Help] Error:', error);
+        
+        // Show error state
+        document.getElementById('aiHelpLoading').classList.add('d-none');
+        document.getElementById('aiHelpError').classList.remove('d-none');
+        document.getElementById('aiHelpErrorMessage').textContent = 
+            error.message || 'An error occurred while generating suggestions. Please try again.';
+    } finally {
+        UI.setButtonLoading(aiHelpBtn, false);
+    }
+}
+
+/**
+ * Format AI response with proper HTML
+ */
+function formatAIResponse(text) {
+    // Convert markdown-style formatting to HTML
+    let formatted = text
+        // Headers (##)
+        .replace(/##\s+(.+)/g, '<h6>$1</h6>')
+        // Bold (**text**)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        // Italic (*text*)
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // Code (`code`)
+        .replace(/`(.+?)`/g, '<code>$1</code>')
+        // Line breaks
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    
+    // Wrap in paragraph
+    formatted = '<p>' + formatted + '</p>';
+    
+    // Convert numbered lists (1. 2. 3.)
+    formatted = formatted.replace(/(\d+)\.\s+(.+?)(?=<br>|<\/p>)/g, '<li>$2</li>');
+    formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+    
+    // Convert bullet lists (- or *)
+    formatted = formatted.replace(/[-*]\s+(.+?)(?=<br>|<\/p>)/g, '<li>$1</li>');
+    
+    return formatted;
 }
 
 /**

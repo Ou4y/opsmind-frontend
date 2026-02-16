@@ -1,60 +1,56 @@
 /**
  * OpsMind - AI Service
  * 
- * Handles integration with AI backend services
+ * Handles integration with Google Gemini AI
  * for natural language processing and intelligent chatbot responses.
  */
 
-// AI Service Configuration
-const AI_API_URL = window.OPSMIND_AI_API_URL || 'http://localhost:8000/api/ai';
-const MODEL_NAME = 'llama3.2';
+// Gemini API Configuration
+const GEMINI_API_KEY = window.GEMINI_API_KEY || '';
+const GEMINI_API_URL = window.GEMINI_API_URL || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 /**
- * GeminiService - Service for AI integration
+ * GeminiService - Service for Google Gemini AI integration
  */
 const GeminiService = {
     /**
-     * Generate a response using AI backend
+     * Generate a response using Google Gemini AI
      * @param {string} message - User's message
      * @param {Array} conversationHistory - Previous messages for context (optional)
      * @returns {Promise<string>} AI-generated response
      */
     async generateResponse(message, conversationHistory = []) {
         try {
+            // Check if API key is configured
+            if (!GEMINI_API_KEY) {
+                throw new Error('Gemini API key is not configured. Please add your API key to config.js');
+            }
+
             // Build the conversation context
             const systemContext = this._buildContext(conversationHistory);
             
-            // Prepare messages array for AI format
-            const messages = [
-                {
-                    role: 'system',
-                    content: systemContext
-                },
-                // Add recent conversation history
-                ...this._formatConversationHistory(conversationHistory),
-                {
-                    role: 'user',
-                    content: message
-                }
-            ];
+            // Format the prompt with context and conversation history
+            const prompt = this._buildPrompt(systemContext, conversationHistory, message);
 
-            // Prepare the request payload
+            // Prepare the request payload for Gemini API
             const requestBody = {
-                model: MODEL_NAME,
-                messages: messages,
-                stream: false, // Set to false for complete response
-                options: {
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                generationConfig: {
                     temperature: 0.7,
-                    top_p: 0.9,
-                    num_predict: 1024, // Max tokens
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 1024,
                 }
             };
 
-            console.log('[AI] Sending request to AI backend...');
-            console.log('[AI] Model:', MODEL_NAME);
+            console.log('[Gemini] Sending request to Google AI...');
 
-            // Make the API request to AI backend
-            const response = await fetch(AI_API_URL, {
+            // Make the API request to Gemini
+            const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -63,35 +59,39 @@ const GeminiService = {
             });
 
             if (!response.ok) {
-                let errorMessage = `AI API error: ${response.statusText}`;
+                let errorMessage = `Gemini API error: ${response.statusText}`;
                 try {
                     const errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
-                    console.error('[AI] API Error:', errorData);
+                    errorMessage = errorData.error?.message || errorMessage;
+                    console.error('[Gemini] API Error:', errorData);
                 } catch (e) {
-                    console.error('[AI] API Error:', response.status, response.statusText);
+                    console.error('[Gemini] API Error:', response.status, response.statusText);
                 }
                 throw new Error(errorMessage);
             }
 
             const data = await response.json();
-            console.log('[AI] Response received:', data);
+            console.log('[Gemini] Response received');
 
-            // Extract the response text
-            const aiResponse = data.message?.content || data.response;
+            // Extract the response text from Gemini's response format
+            const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
             
             if (!aiResponse) {
-                throw new Error('No response generated from AI backend');
+                throw new Error('No response generated from Gemini AI');
             }
 
             return aiResponse.trim();
 
         } catch (error) {
-            console.error('[AI] Error generating response:', error);
+            console.error('[Gemini] Error generating response:', error);
             
             // Provide helpful error messages
+            if (error.message.includes('API key')) {
+                throw new Error('Please configure your Gemini API key in config.js');
+            }
+            
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                throw new Error('Cannot connect to AI backend. Please make sure the AI service is running.');
+                throw new Error('Cannot connect to Google AI. Please check your internet connection.');
             }
             
             throw error;
@@ -99,16 +99,30 @@ const GeminiService = {
     },
 
     /**
-     * Format conversation history for AI messages format
+     * Build a complete prompt with context and conversation history
+     * @param {string} systemContext - System context/instructions
      * @param {Array} conversationHistory - Array of previous messages
-     * @returns {Array} Formatted messages array
+     * @param {string} currentMessage - Current user message
+     * @returns {string} Complete prompt
      */
-    _formatConversationHistory(conversationHistory) {
-        const recentMessages = conversationHistory.slice(-5); // Last 5 messages
-        return recentMessages.map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
-        }));
+    _buildPrompt(systemContext, conversationHistory, currentMessage) {
+        let prompt = systemContext + '\n\n';
+
+        // Add recent conversation history (last 5 messages)
+        const recentMessages = conversationHistory.slice(-5);
+        if (recentMessages.length > 0) {
+            prompt += 'Previous conversation:\n';
+            recentMessages.forEach(msg => {
+                const sender = msg.sender === 'user' ? 'User' : 'Assistant';
+                prompt += `${sender}: ${msg.text}\n`;
+            });
+            prompt += '\n';
+        }
+
+        // Add current user message
+        prompt += `User: ${currentMessage}\n\nAssistant:`;
+
+        return prompt;
     },
 
     /**
@@ -117,7 +131,7 @@ const GeminiService = {
      * @returns {string} Formatted context string
      */
     _buildContext(conversationHistory) {
-        let context = `You are OpsMind AI Assistant, a helpful IT support chatbot for the OpsMind IT Service Management platform. 
+        return `You are OpsMind AI Assistant, a helpful IT support chatbot for the OpsMind IT Service Management platform. 
 
 Your role is to:
 - Help users with IT support questions
@@ -133,21 +147,7 @@ Key OpsMind features you should know about:
 - AI Insights: AI-powered predictions for SLA breach risks
 - Priority Levels: High (1hr response, 4hr resolution), Medium (4hr response, 24hr resolution), Low (8hr response, 72hr resolution)
 
-Be helpful, concise, and professional. If you don't know something specific about OpsMind, be honest and suggest they contact support or check the documentation.
-
-`;
-
-        // Add recent conversation history for context (last 5 messages)
-        const recentMessages = conversationHistory.slice(-5);
-        if (recentMessages.length > 0) {
-            context += '\nRecent conversation:\n';
-            recentMessages.forEach(msg => {
-                const sender = msg.sender === 'user' ? 'User' : 'Assistant';
-                context += `${sender}: ${msg.text}\n`;
-            });
-        }
-
-        return context;
+Be helpful, concise, and professional. If you don't know something specific about OpsMind, be honest and suggest they contact support or check the documentation.`;
     },
 
     /**

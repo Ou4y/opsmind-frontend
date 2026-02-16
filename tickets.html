@@ -15,6 +15,63 @@
 
     <!-- Runtime config (must be before any app/service scripts) -->
     <script src="/assets/js/config.js"></script>
+    
+    <style>
+        /* AI Help Modal Styles */
+        .ai-suggestions-content {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .ai-suggestions-content h6 {
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .ai-suggestions-content h6:first-child {
+            margin-top: 0;
+        }
+        
+        .ai-suggestions-content ol,
+        .ai-suggestions-content ul {
+            margin-bottom: 0.5rem;
+        }
+        
+        .ai-suggestions-content li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+        
+        .ai-suggestions-content strong {
+            color: #1e293b;
+        }
+        
+        .ai-suggestions-content code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        #aiHelpBtn {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        #aiHelpBtn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .flex-grow-1 {
+            flex-grow: 1;
+        }
+    </style>
 </head>
 <body class="app-body">
     <!-- Navigation (loaded dynamically) -->
@@ -424,6 +481,15 @@
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-info" id="aiHelpBtn">
+                            <i class="bi bi-magic me-1"></i>
+                            <span class="btn-text">AI Help</span>
+                            <span class="btn-loader d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Getting suggestions...
+                            </span>
+                        </button>
+                        <div class="flex-grow-1"></div>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="submitTicketBtn">
                             <span class="btn-text">Create Ticket</span>
@@ -434,6 +500,62 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Help Modal -->
+    <div class="modal fade" id="aiHelpModal" tabindex="-1" aria-labelledby="aiHelpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="modal-title" id="aiHelpModalLabel">
+                        <i class="bi bi-magic me-2"></i>AI Troubleshooting Suggestions
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Loading State -->
+                    <div id="aiHelpLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted">AI is analyzing your ticket and generating troubleshooting steps...</p>
+                    </div>
+
+                    <!-- AI Suggestions Content -->
+                    <div id="aiHelpContent" class="d-none">
+                        <div class="alert alert-info d-flex align-items-start mb-3">
+                            <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+                            <div>
+                                <strong>AI-Generated Suggestions</strong>
+                                <p class="mb-0 small">Based on your ticket details, here are some troubleshooting steps you can try before submitting.</p>
+                            </div>
+                        </div>
+                        
+                        <div id="aiSuggestionsText" class="ai-suggestions-content">
+                            <!-- AI suggestions will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="aiHelpError" class="d-none">
+                        <div class="alert alert-danger d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                            <div>
+                                <strong>Unable to get AI suggestions</strong>
+                                <p class="mb-0" id="aiHelpErrorMessage">An error occurred while generating suggestions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="proceedWithTicketBtn">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Proceed with Ticket Creation
+                    </button>
+                </div>
             </div>
         </div>
     </div>
