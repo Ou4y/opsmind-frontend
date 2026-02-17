@@ -120,8 +120,8 @@ async function loadDashboardData(showLoading = true) {
         const dateFilter = getDateRangeFilter();
         
         // Fetch all data in parallel
-        const [metrics, slaReport, escalationStats] = await Promise.all([
-            WorkflowService.getWorkflowMetrics(dateFilter).catch(err => {
+        const [metricsResp, slaResp, escalationResp] = await Promise.all([
+            WorkflowService.getOverviewMetrics(dateFilter).catch(err => {
                 console.error('Error loading metrics:', err);
                 return null;
             }),
@@ -129,15 +129,15 @@ async function loadDashboardData(showLoading = true) {
                 console.error('Error loading SLA report:', err);
                 return null;
             }),
-            WorkflowService.getEscalationStats(dateFilter).catch(err => {
+            WorkflowService.getEscalationReport(dateFilter).catch(err => {
                 console.error('Error loading escalation stats:', err);
                 return null;
             })
         ]);
         
-        state.metrics = metrics;
-        state.slaReport = slaReport;
-        state.escalationStats = escalationStats;
+        state.metrics = metricsResp?.data || null;
+        state.slaReport = slaResp?.data || null;
+        state.escalationStats = escalationResp?.data || null;
         
         // Update all visualizations
         updateOverviewStats();
@@ -836,7 +836,8 @@ function renderEfficiencyMetrics() {
  */
 async function loadSupportGroups() {
     try {
-        state.supportGroups = await WorkflowService.getSupportGroups();
+        const groupsResponse = await WorkflowService.getAllSupportGroups();
+        state.supportGroups = groupsResponse.data || [];
         renderSupportGroups();
     } catch (error) {
         console.error('Error loading support groups:', error);

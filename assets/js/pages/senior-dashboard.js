@@ -112,7 +112,8 @@ async function loadDashboardData() {
         const groupId = state.currentUser.group_id || 1;
         
         // Load all team tickets
-        state.teamTickets = await WorkflowService.getGroupTickets(groupId);
+        const ticketsResponse = await WorkflowService.getGroupTickets(groupId);
+        state.teamTickets = ticketsResponse.data || [];
         
         // Filter my tickets
         state.myTickets = state.teamTickets.filter(t => t.assigned_to === state.currentUser.id);
@@ -125,7 +126,8 @@ async function loadDashboardData() {
         
         // Load team members
         try {
-            state.teamMembers = await WorkflowService.getGroupMembers(groupId);
+            const membersResponse = await WorkflowService.getGroupMembers(groupId);
+            state.teamMembers = membersResponse.data || [];
         } catch (error) {
             console.error('Error loading team members:', error);
             state.teamMembers = [];

@@ -153,7 +153,8 @@ async function loadMyTickets() {
         const ticketIds = state.myTickets.map(t => t.id);
         if (ticketIds.length > 0) {
             try {
-                state.slaData = await WorkflowService.getSLAStatus(ticketIds);
+                const slaResponse = await WorkflowService.getSLAStatus(ticketIds);
+                state.slaData = slaResponse.data || {};
             } catch (error) {
                 console.error('Error loading SLA data:', error);
             }
@@ -201,7 +202,8 @@ async function loadAvailableTickets() {
             }
         }
         
-        state.availableTickets = await WorkflowService.getGroupTickets(groupId, filters);
+        const response = await WorkflowService.getGroupTickets(groupId, filters);
+        state.availableTickets = response.data || [];
         
         if (state.availableTickets.length === 0) {
             loadingEl.style.display = 'none';
@@ -213,7 +215,8 @@ async function loadAvailableTickets() {
         const ticketIds = state.availableTickets.map(t => t.id);
         if (ticketIds.length > 0) {
             try {
-                const availableSLA = await WorkflowService.getSLAStatus(ticketIds);
+                const slaResponse = await WorkflowService.getSLAStatus(ticketIds);
+                const availableSLA = slaResponse.data || {};
                 state.slaData = { ...state.slaData, ...availableSLA };
             } catch (error) {
                 console.error('Error loading SLA data:', error);
@@ -511,7 +514,8 @@ window.viewTicketDetails = async function(ticketId) {
     
     // Load workflow logs
     try {
-        state.workflowLogs = await WorkflowService.getWorkflowLogs(ticketId);
+        const logsResponse = await WorkflowService.getWorkflowLogs(ticketId);
+        state.workflowLogs = logsResponse.data || [];
     } catch (error) {
         console.error('Error loading workflow logs:', error);
         state.workflowLogs = [];
