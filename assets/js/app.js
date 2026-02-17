@@ -12,6 +12,8 @@
 import Router from './router.js';
 import UI from './ui.js';
 import AuthService from '../../services/authService.js';
+import NotificationService from '../../services/notificationService.js';
+
 
 /**
  * App - Main application controller
@@ -54,6 +56,64 @@ const App = {
         // Dispatch event for page-specific scripts
         document.dispatchEvent(new CustomEvent('app:ready'));
     },
+
+
+    async loadNotifications() {
+    try {
+        const notifications = await NotificationService.getUserNotifications();
+
+        console.log("Loaded notifications:", notifications);
+
+        const unreadCount = notifications.filter(n => !n.read).length;
+
+        const badge = document.getElementById('notificationBadge');
+
+        // Badge Logic
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = unreadCount;
+            } else {
+                badge.style.display = 'none';
+                badge.textContent = '';
+            }
+        }
+
+        const container = document.getElementById('notificationDropdownList');
+
+        if (container) {
+
+            if (notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="notification-empty">
+                        No notifications
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = notifications.map(n => `
+                <div 
+                    class="notification-item ${!n.read ? 'unread' : ''}" 
+                    data-id="${n._id}"
+                >
+                    <div class="notification-message">
+                        ${n.message}
+                    </div>
+                    <span class="notification-time">
+                        ${new Date(n.createdAt).toLocaleString()}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+   },
+
+
+
 
     /**
      * Check for error message from redirect
@@ -155,11 +215,26 @@ const App = {
             this._logoutDelegationBound = true;
         }
 
-        // Notifications button (placeholder for future implementation)
-        const notificationsBtn = document.getElementById('notificationsBtn');
-        notificationsBtn?.addEventListener('click', () => {
-            UI.info('Notifications feature coming soon!');
-        });
+        // Notifications button 
+        this.loadNotifications();
+
+          if (!this._notificationInterval) {
+              this._notificationInterval = setInterval(() => {
+              this.loadNotifications();
+            }, 5000);
+          }
+
+          const notificationsBtn = document.getElementById('notificationsBtn');
+
+          notificationsBtn?.addEventListener('click', async () => {
+             const dropdown = document.getElementById('notificationDropdown');
+             dropdown?.classList.toggle('show');
+
+           if (dropdown?.classList.contains('show')) {
+               await NotificationService.markAllAsRead();
+               await this.loadNotifications();
+            }
+           });
 
         // Global search (placeholder)
         const globalSearch = document.getElementById('globalSearch');

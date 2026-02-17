@@ -25,10 +25,21 @@
         </button>
 
         <!-- Notifications -->
-        <button class="navbar-menu-item" id="notificationsBtn" aria-label="Notifications">
-            <i class="bi bi-bell"></i>
-            <span class="notification-badge" id="notificationBadge"></span>
-        </button>
+        <div class="dropdown position-relative">
+            <button class="navbar-menu-item" id="notificationsBtn" aria-label="Notifications">
+               <i class="bi bi-bell"></i>
+               <span class="notification-badge" id="notificationBadge"></span>
+            </button>
+
+           <div class="dropdown-menu dropdown-menu-end p-2"
+              id="notificationDropdown"
+               style="width: 320px; max-height: 400px; overflow-y: auto;">
+        
+            <div id="notificationDropdownList">
+               <div class="dropdown-item text-muted">Loading...</div>
+            </div>
+           </div>
+        </div>
 
         <!-- Help -->
         <button class="navbar-menu-item d-none d-md-flex" id="helpBtn" aria-label="Help">
