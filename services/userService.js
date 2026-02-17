@@ -34,12 +34,19 @@ const UserService = {
      */
     async getUsers(options = {}) {
         try {
+            // Transform frontend role filter to backend format
+            let role = options.role;
+            if (role && ['JUNIOR', 'SENIOR', 'SUPERVISOR'].includes(role.toUpperCase())) {
+                // When filtering by technician levels, search for TECHNICIAN role
+                role = 'TECHNICIAN';
+            }
+            
             // Build query params
             const params = new URLSearchParams();
             if (options.limit) params.append('limit', options.limit);
             if (options.offset) params.append('offset', options.offset);
             if (options.search) params.append('search', options.search);
-            if (options.role) params.append('role', options.role);
+            if (role) params.append('role', role);
             if (options.isVerified !== undefined) params.append('isVerified', options.isVerified);
             if (options.sortBy) params.append('sortBy', options.sortBy);
             if (options.sortOrder) params.append('sortOrder', options.sortOrder);
@@ -56,6 +63,22 @@ const UserService = {
 
             if (!response.ok) {
                 throw new Error(data.message || 'Failed to fetch users');
+            }
+
+            // Transform backend data to frontend format
+            if (data.data && Array.isArray(data.data)) {
+                data.data = data.data.map(user => {
+                    // Convert TECHNICIAN + technicianLevel to frontend role
+                    if (user.role === 'TECHNICIAN' && user.technicianLevel) {
+                        return { ...user, role: user.technicianLevel };
+                    }
+                    return user;
+                });
+                
+                // If filtering by specific technician level, filter the results
+                if (options.role && ['JUNIOR', 'SENIOR', 'SUPERVISOR'].includes(options.role.toUpperCase())) {
+                    data.data = data.data.filter(user => user.role === options.role.toUpperCase());
+                }
             }
 
             return data;
@@ -83,6 +106,11 @@ const UserService = {
                 throw new Error(data.message || 'Failed to fetch user');
             }
 
+            // Transform backend data to frontend format
+            if (data.data && data.data.role === 'TECHNICIAN' && data.data.technicianLevel) {
+                data.data.role = data.data.technicianLevel;
+            }
+
             return data;
         } catch (error) {
             console.error('Failed to fetch user:', error);
@@ -97,15 +125,27 @@ const UserService = {
      * @param {string} userData.lastName - Last name
      * @param {string} userData.email - Email address
      * @param {string} userData.password - Password
-     * @param {string} userData.role - User role (ADMIN, DOCTOR, TECHNICIAN, STUDENT)
+     * @param {string} userData.role - User role (ADMIN, DOCTOR, JUNIOR, SENIOR, SUPERVISOR, STUDENT)
      * @returns {Promise<Object>} Created user data
      */
     async createUser(userData) {
         try {
+            // Transform frontend roles to backend format
+            const backendData = { ...userData };
+            
+            // Map JUNIOR/SENIOR/SUPERVISOR to TECHNICIAN with level
+            if (['JUNIOR', 'SENIOR', 'SUPERVISOR'].includes(userData.role?.toUpperCase())) {
+                backendData.role = 'TECHNICIAN';
+                backendData.technicianLevel = userData.role.toUpperCase();
+            }
+            
+            console.log('[UserService] Creating user - Frontend data:', userData);
+            console.log('[UserService] Creating user - Backend data:', backendData);
+            
             const response = await fetch(`${API_BASE_URL}/admin/users`, {
                 method: 'POST',
                 headers: AuthService.getAuthHeaders(),
-                body: JSON.stringify(userData)
+                body: JSON.stringify(backendData)
             });
 
             const data = await response.json();
@@ -137,10 +177,22 @@ const UserService = {
      */
     async updateUser(userId, updates) {
         try {
+            // Transform frontend roles to backend format
+            const backendData = { ...updates };
+            
+            // Map JUNIOR/SENIOR/SUPERVISOR to TECHNICIAN with level
+            if (updates.role && ['JUNIOR', 'SENIOR', 'SUPERVISOR'].includes(updates.role.toUpperCase())) {
+                backendData.role = 'TECHNICIAN';
+                backendData.technicianLevel = updates.role.toUpperCase();
+            }
+            
+            console.log('[UserService] Updating user - Frontend data:', updates);
+            console.log('[UserService] Updating user - Backend data:', backendData);
+            
             const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: AuthService.getAuthHeaders(),
-                body: JSON.stringify(updates)
+                body: JSON.stringify(backendData)
             });
 
             const data = await response.json();
@@ -286,11 +338,11 @@ const UserService = {
 
         // Role
         if (!isUpdate || userData.role !== undefined) {
-            const validRoles = ['ADMIN', 'DOCTOR', 'TECHNICIAN', 'STUDENT'];
+            const validRoles = ['ADMIN', 'DOCTOR', 'JUNIOR', 'SENIOR', 'SUPERVISOR', 'STUDENT'];
             const roleValid = userData.role && validRoles.includes(userData.role.toUpperCase());
             console.log('[validateUserData] Role validation:', { role: userData.role, valid: roleValid });
             if (!roleValid) {
-                errors.push('Valid role is required (ADMIN, DOCTOR, TECHNICIAN, or STUDENT)');
+                errors.push('Valid role is required (ADMIN, DOCTOR, JUNIOR, SENIOR, SUPERVISOR, or STUDENT)');
                 console.log('[validateUserData] Role validation failed');
             }
         }
@@ -312,7 +364,9 @@ const UserService = {
         const roleMap = {
             'ADMIN': 'Administrator',
             'DOCTOR': 'Professor',
-            'TECHNICIAN': 'Technician',
+            'JUNIOR': 'Junior Technician',
+            'SENIOR': 'Senior Technician',
+            'SUPERVISOR': 'Supervisor',
             'STUDENT': 'Student'
         };
         return roleMap[role?.toUpperCase()] || role;
@@ -327,7 +381,9 @@ const UserService = {
         const badgeMap = {
             'ADMIN': 'bg-danger',
             'DOCTOR': 'bg-warning text-dark',
-            'TECHNICIAN': 'bg-success',
+            'JUNIOR': 'bg-success',
+            'SENIOR': 'bg-primary',
+            'SUPERVISOR': 'bg-dark',
             'STUDENT': 'bg-info'
         };
         return badgeMap[role?.toUpperCase()] || 'bg-secondary';

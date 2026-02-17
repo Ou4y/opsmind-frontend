@@ -10,8 +10,11 @@
  * Backend API: http://localhost:3002
  */
 
-// API base URL - can be configured for different environments
-const API_BASE_URL = 'http://localhost:3002';
+// API base URL - can be configured for different environments via config.js
+const API_BASE_URL = (
+    (typeof window !== 'undefined' && window.OPSMIND_API_URL) ? window.OPSMIND_API_URL :
+    'http://localhost:3002'
+);
 
 // Storage keys
 const TOKEN_KEY = 'opsmind_token';
@@ -334,6 +337,14 @@ const AuthService = {
     },
 
     /**
+     * Get current user (alias for getUser)
+     * @returns {Object|null} User object or null
+     */
+    getCurrentUser() {
+        return this.getUser();
+    },
+
+    /**
      * Check if user is currently authenticated
      * @returns {boolean} True if token exists
      */
@@ -374,6 +385,84 @@ const AuthService = {
         // Check both 'role' (string) and 'roles' (array) for backward compatibility
         return user?.role === 'STUDENT' || 
                (Array.isArray(user?.roles) && user.roles.includes('STUDENT'));
+    },
+
+    /**
+     * Check if current user is a technician (any level)
+     * @returns {boolean} True if user is technician
+     */
+    isTechnician() {
+        const user = this.getUser();
+        return user?.role === 'TECHNICIAN' || user?.role === 'JUNIOR' ||
+               (Array.isArray(user?.roles) && (user.roles.includes('TECHNICIAN') || user.roles.includes('JUNIOR')));
+    },
+
+    /**
+     * Check if current user is a senior technician or building manager
+     * @returns {boolean} True if user is senior
+     */
+    isSenior() {
+        const user = this.getUser();
+        return user?.role === 'SENIOR' || 
+               (Array.isArray(user?.roles) && user.roles.includes('SENIOR'));
+    },
+
+    /**
+     * Check if current user is a supervisor
+     * @returns {boolean} True if user is supervisor
+     */
+    isSupervisor() {
+        const user = this.getUser();
+        return user?.role === 'SUPERVISOR' || 
+               (Array.isArray(user?.roles) && user.roles.includes('SUPERVISOR'));
+    },
+
+    /**
+     * Check if current user has a specific role
+     * @param {string} role - Role to check
+     * @returns {boolean} True if user has the role
+     */
+    hasRole(role) {
+        const user = this.getUser();
+        const roleUpper = role.toUpperCase();
+        return user?.role === roleUpper || 
+               (Array.isArray(user?.roles) && user.roles.includes(roleUpper));
+    },
+
+    /**
+     * Check if current user has any of the specified roles
+     * @param {Array<string>} roles - Roles to check
+     * @returns {boolean} True if user has any of the roles
+     */
+    hasAnyRole(roles) {
+        return roles.some(role => this.hasRole(role));
+    },
+
+    /**
+     * Get technician level from user data
+     * @returns {string|null} Technician level (L1, L2, etc.) or null
+     */
+    getTechnicianLevel() {
+        const user = this.getUser();
+        return user?.technicianLevel || user?.level || null;
+    },
+
+    /**
+     * Get user's building assignment
+     * @returns {string|null} Building ID or null
+     */
+    getUserBuilding() {
+        const user = this.getUser();
+        return user?.building || null;
+    },
+
+    /**
+     * Get user's support group ID
+     * @returns {number|null} Support group ID or null
+     */
+    getUserSupportGroup() {
+        const user = this.getUser();
+        return user?.supportGroupId || user?.groupId || null;
     },
 
     /**

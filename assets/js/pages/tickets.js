@@ -377,8 +377,17 @@ function renderTableView(tableBody) {
     if (!tableBody) return;
 
     let html = '';
+    const currentUser = AuthService.getCurrentUser();
 
     state.tickets.forEach(ticket => {
+        // Determine button visibility based on role
+        const canTriggerWorkflow = AuthService.isTechnician() || AuthService.isSenior() || AuthService.isSupervisor() || AuthService.isAdmin();
+        const canUpdate = AuthService.isAdmin() || 
+                         AuthService.isSupervisor() || 
+                         AuthService.isSenior() ||
+                         (ticket.assignee === currentUser?.email);
+        const canDelete = AuthService.isAdmin();
+
         html += `
             <tr data-ticket-id="${ticket.id}" class="ticket-row">
                 <td><code class="text-primary">${UI.escapeHTML(ticket.id)}</code></td>
@@ -413,15 +422,21 @@ function renderTableView(tableBody) {
                         <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();" data-action="view" data-id="${ticket.id}" title="View Details">
                             <i class="bi bi-eye"></i>
                         </button>
+                        ${canTriggerWorkflow ? `
                         <button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation();" data-action="workflow" data-id="${ticket.id}" title="Trigger Workflow">
                             <i class="bi bi-play"></i>
                         </button>
+                        ` : ''}
+                        ${canUpdate ? `
                         <button class="btn btn-outline-info btn-sm" onclick="event.stopPropagation();" data-action="update" data-id="${ticket.id}" title="Update Ticket">
                             <i class="bi bi-pencil"></i>
                         </button>
+                        ` : ''}
+                        ${canDelete ? `
                         <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();" data-action="delete" data-id="${ticket.id}" title="Delete Ticket">
                             <i class="bi bi-trash"></i>
                         </button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>

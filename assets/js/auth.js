@@ -12,6 +12,38 @@
 import AuthService from '/services/authService.js';
 
 /**
+ * Get role-based dashboard URL
+ * @returns {string} Dashboard URL based on user role
+ */
+function getRoleBasedDashboard() {
+    const user = AuthService.getCurrentUser();
+    const role = user?.role?.toUpperCase();
+    
+    // Route to specific dashboard based on role
+    switch(role) {
+        case 'STUDENT':
+        case 'DOCTOR':
+            return 'dashboard.html';
+        
+        case 'TECHNICIAN':
+        case 'JUNIOR':
+            return 'junior-dashboard.html';
+        
+        case 'SENIOR':
+            return 'senior-dashboard.html';
+        
+        case 'SUPERVISOR':
+            return 'supervisor-dashboard.html';
+        
+        case 'ADMIN':
+            return 'senior-dashboard.html';  // Admin sees advanced dashboard
+        
+        default:
+            return 'dashboard.html';  // Fallback to basic dashboard
+    }
+}
+
+/**
  * Initialize the login page
  */
 function initLoginPage() {
@@ -65,7 +97,7 @@ function initLoginPage() {
 
     // Check if already authenticated
     if (AuthService.isAuthenticated()) {
-        window.location.href = 'dashboard.html';
+        window.location.href = getRoleBasedDashboard();
         return;
     }
 
@@ -454,17 +486,21 @@ function initLoginPage() {
         setOTPLoading(true);
 
         try {
+            console.log('🔐 Verifying OTP for:', pending.email, 'Purpose:', pending.purpose);
             const response = await AuthService.verifyOTP(pending.email, code, pending.purpose);
+            console.log('✅ OTP verification response:', response);
             setOTPLoading(false);
             
             if (pending.purpose === 'VERIFICATION') {
                 // Account verified, backend sends LOGIN OTP
+                console.log('📧 Account verified, awaiting LOGIN OTP...');
                 showOTPSuccess('✓ Account verified! Check your email for login code.');
                 otpCode.value = '';
                 
                 // Wait 2 seconds then update modal for LOGIN
                 setTimeout(() => {
                     const newPending = AuthService.getPendingVerification();
+                    console.log('🔄 Checking for LOGIN OTP pending:', newPending);
                     if (newPending && newPending.purpose === 'LOGIN') {
                         showOTPModal(newPending.email, 'LOGIN');
                     }
@@ -472,16 +508,36 @@ function initLoginPage() {
                 
             } else if (pending.purpose === 'LOGIN') {
                 // Login successful
+                console.log('✅ Login successful! Auth data stored.');
+                const user = AuthService.getCurrentUser();
+                console.log('👤 Current user:', user);
+                const dashboardUrl = getRoleBasedDashboard();
+                console.log('🚀 Redirecting to:', dashboardUrl);
+                
                 showOTPSuccess('✓ Login successful! Redirecting...');
                 
-                // Redirect to dashboard after brief delay
+                // Hide modal and redirect immediately
+                try {
+                    const modalElement = document.getElementById('otpModal');
+                    if (modalElement) {
+                        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Modal hide failed:', e);
+                }
+                
+                // Force redirect after brief delay
                 setTimeout(() => {
-                    otpModal.hide();
-                    window.location.href = 'dashboard.html';
-                }, 1500);
+                    console.log('🔄 Executing redirect to:', dashboardUrl);
+                    window.location.href = dashboardUrl;
+                }, 800);
             }
             
         } catch (error) {
+            console.error('❌ OTP verification error:', error);
             setOTPLoading(false);
             showOTPError(error.message || 'Invalid code. Please try again.');
             otpCode.value = '';

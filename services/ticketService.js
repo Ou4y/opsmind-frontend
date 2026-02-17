@@ -15,8 +15,8 @@ import AuthService from './authService.js';
 // Prefer runtime-configured base URL (set by assets/js/config.js or docker env injection).
 // Fallback to localhost for local dev, then to relative /api.
 const API_BASE_URL = (
-    (typeof window !== 'undefined' && window.OPSMIND_API_URL) ? window.OPSMIND_API_URL :
-    (typeof process !== 'undefined' && process?.env?.OPSMIND_API_URL) ? process.env.OPSMIND_API_URL :
+    (typeof window !== 'undefined' && window.OPSMIND_TICKET_URL) ? window.OPSMIND_TICKET_URL :
+    (typeof process !== 'undefined' && process?.env?.OPSMIND_TICKET_URL) ? process.env.OPSMIND_TICKET_URL :
     'http://localhost:3001'
 );
 

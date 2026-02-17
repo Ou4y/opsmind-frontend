@@ -111,9 +111,41 @@ const App = {
             } else {
                 console.log('[App] User is not admin');
             }
+            
+            // Handle role-based visibility for sidebar items
+            this.applyRoleBasedVisibility();
         } catch (error) {
             console.error('Failed to load components:', error);
         }
+    },
+
+    /**
+     * Apply role-based visibility to sidebar items with data-roles attribute
+     */
+    applyRoleBasedVisibility() {
+        const user = AuthService.getUser();
+        if (!user || !user.role) {
+            console.log('[App] No user role found, skipping role-based visibility');
+            return;
+        }
+        
+        const userRole = user.role.toUpperCase();
+        console.log('[App] Applying role-based visibility for role:', userRole);
+        
+        // Find all elements with data-roles attribute
+        const roleElements = document.querySelectorAll('[data-roles]');
+        
+        roleElements.forEach(element => {
+            const allowedRoles = element.getAttribute('data-roles').split(',').map(r => r.trim().toUpperCase());
+            
+            if (allowedRoles.includes(userRole)) {
+                element.style.display = '';
+                console.log('[App] Showing element for role:', userRole, element);
+            } else {
+                element.style.display = 'none';
+                console.log('[App] Hiding element for role:', userRole, element);
+            }
+        });
     },
 
     /**

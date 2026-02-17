@@ -25,6 +25,29 @@ const Router = {
         'admin-reports.html'
     ],
     
+    // Pages restricted to STUDENT or DOCTOR only
+    studentDoctorPages: [
+        'dashboard.html',  // Personal dashboard
+    ],
+    
+    // Pages for TECHNICIAN role (includes claim/routing features)
+    technicianPages: [
+        'junior-dashboard.html',
+        'tickets.html'  // Technicians can see and claim tickets
+    ],
+    
+    // Pages for SENIOR role (building managers)
+    seniorPages: [
+        'senior-dashboard.html',
+        'workflows.html'  // Can manage workflows
+    ],
+    
+    // Pages for SUPERVISOR role (global view)
+    supervisorPages: [
+        'supervisor-dashboard.html',
+        'ai-insights.html'  // Advanced analytics
+    ],
+    
     // Current page name
     currentPage: '',
 
@@ -47,8 +70,8 @@ const Router = {
             return false;
         }
 
-        // Check if current page requires admin role
-        if (this.isAdminPage() && !AuthService.isAdmin()) {
+        // Check role-based access
+        if (!this.checkRoleAccess()) {
             this.redirectToUnauthorized();
             return false;
         }
@@ -56,6 +79,46 @@ const Router = {
         // Highlight active sidebar link
         this.setActiveLink();
         
+        return true;
+    },
+
+    /**
+     * Check if user has access to current page based on role
+     * @returns {boolean} True if user has access
+     */
+    checkRoleAccess() {
+        // Public pages - everyone can access
+        if (this.isPublicPage()) return true;
+        
+        // Admin pages - only admins
+        if (this.isAdminPage() && !AuthService.isAdmin()) return false;
+        
+        // Student/Doctor only pages
+        if (this.isStudentDoctorPage()) {
+            // Only STUDENT or DOCTOR can access
+            return AuthService.isStudent() || AuthService.isDoctor();
+        }
+        
+        // Technician pages
+        if (this.isTechnicianPage()) {
+            // TECHNICIAN, SENIOR, SUPERVISOR, or ADMIN can access
+            return AuthService.isTechnician() || AuthService.isSenior() || 
+                   AuthService.isSupervisor() || AuthService.isAdmin();
+        }
+        
+        // Senior pages
+        if (this.isSeniorPage()) {
+            // SENIOR, SUPERVISOR, or ADMIN can access
+            return AuthService.isSenior() || AuthService.isSupervisor() || AuthService.isAdmin();
+        }
+        
+        // Supervisor pages
+        if (this.isSupervisorPage()) {
+            // SUPERVISOR or ADMIN can access
+            return AuthService.isSupervisor() || AuthService.isAdmin();
+        }
+        
+        // Default: allow access to non-restricted pages
         return true;
     },
 
@@ -83,6 +146,38 @@ const Router = {
      */
     isAdminPage() {
         return this.adminPages.includes(this.currentPage);
+    },
+    
+    /**
+     * Check if current page is a student/doctor only page
+     * @returns {boolean}
+     */
+    isStudentDoctorPage() {
+        return this.studentDoctorPages.includes(this.currentPage);
+    },
+    
+    /**
+     * Check if current page is a technician page
+     * @returns {boolean}
+     */
+    isTechnicianPage() {
+        return this.technicianPages.includes(this.currentPage);
+    },
+    
+    /**
+     * Check if current page is a senior page
+     * @returns {boolean}
+     */
+    isSeniorPage() {
+        return this.seniorPages.includes(this.currentPage);
+    },
+    
+    /**
+     * Check if current page is a supervisor page
+     * @returns {boolean}
+     */
+    isSupervisorPage() {
+        return this.supervisorPages.includes(this.currentPage);
     },
 
     /**
@@ -123,6 +218,38 @@ const Router = {
     },
 
     /**
+     * Get role-based dashboard URL
+     * @returns {string} Dashboard URL based on user role
+     */
+    getRoleBasedDashboard() {
+        const user = AuthService.getCurrentUser();
+        const role = user?.role?.toUpperCase();
+        
+        // Route to specific dashboard based on role
+        switch(role) {
+            case 'STUDENT':
+            case 'DOCTOR':
+                return 'dashboard.html';
+            
+            case 'TECHNICIAN':
+            case 'JUNIOR':
+                return 'junior-dashboard.html';
+            
+            case 'SENIOR':
+                return 'senior-dashboard.html';
+            
+            case 'SUPERVISOR':
+                return 'supervisor-dashboard.html';
+            
+            case 'ADMIN':
+                return 'senior-dashboard.html';  // Admin sees advanced dashboard
+            
+            default:
+                return 'dashboard.html';  // Fallback to basic dashboard
+        }
+    },
+
+    /**
      * Redirect to dashboard
      */
     redirectToDashboard() {
@@ -133,7 +260,9 @@ const Router = {
         if (redirectUrl && !redirectUrl.includes('index.html')) {
             window.location.href = redirectUrl;
         } else {
-            window.location.href = 'dashboard.html';
+            // Redirect to role-specific dashboard
+            const dashboardUrl = this.getRoleBasedDashboard();
+            window.location.href = dashboardUrl;
         }
     },
 

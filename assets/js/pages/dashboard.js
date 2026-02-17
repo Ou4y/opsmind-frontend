@@ -13,13 +13,15 @@ import UI from '/assets/js/ui.js';
 import TicketService from '/services/ticketService.js';
 import WorkflowService from '/services/workflowService.js';
 import AIService from '/services/aiService.js';
+import AuthService from '/services/authService.js';
 
 /**
  * Dashboard state
  */
 const state = {
     chartPeriod: 30,
-    isLoading: false
+    isLoading: false,
+    userRole: null
 };
 
 /**
@@ -29,11 +31,42 @@ export async function initDashboard() {
     // Wait for app to be ready
     await waitForApp();
     
+    // Get current user role
+    const user = AuthService.getCurrentUser();
+    state.userRole = user?.role?.toUpperCase();
+    
+    // Customize dashboard header based on role
+    customizeDashboardHeader();
+    
     // Set up event listeners
     setupEventListeners();
     
     // Load all dashboard data
     await loadDashboardData();
+}
+
+/**
+ * Customize dashboard header based on user role
+ */
+function customizeDashboardHeader() {
+    const pageTitle = document.querySelector('.page-title');
+    const pageSubtitle = document.querySelector('.page-subtitle');
+    
+    if (!pageTitle || !pageSubtitle) return;
+    
+    switch(state.userRole) {
+        case 'STUDENT':
+            pageTitle.textContent = 'Student Dashboard';
+            pageSubtitle.textContent = 'View and manage your support tickets.';
+            break;
+        case 'DOCTOR':
+            pageTitle.textContent = 'Doctor Dashboard';
+            pageSubtitle.textContent = 'Track your IT support requests and service tickets.';
+            break;
+        default:
+            pageTitle.textContent = 'Dashboard';
+            pageSubtitle.textContent = 'Welcome back! Here\'s your IT operations overview.';
+    }
 }
 
 /**
@@ -105,6 +138,13 @@ async function loadDashboardData() {
  */
 async function loadStatistics() {
     try {
+        // For STUDENT/DOCTOR: Show only their own ticket stats
+        if (state.userRole === 'STUDENT' || state.userRole === 'DOCTOR') {
+            await loadUserTicketStatistics();
+            return;
+        }
+        
+        // For other roles: Show system-wide stats
         // Try to get real data from API
         const [ticketStats, aiStats] = await Promise.allSettled([
             TicketService.getStatistics(),
@@ -138,6 +178,63 @@ async function loadStatistics() {
     } catch (error) {
         console.error('Failed to load statistics:', error);
         useMockStatistics();
+    }
+}
+
+/**
+ * Load user-specific ticket statistics for STUDENT/DOCTOR
+ */
+async function loadUserTicketStatistics() {
+    try {
+        const user = AuthService.getCurrentUser();
+        
+        // Fetch only user's tickets
+        const response = await TicketService.getTickets({
+            requester: user.email,
+            page: 1,
+            pageSize: 100  // Get more tickets to calculate stats
+        });
+        
+        if (response && response.tickets) {
+            const tickets = response.tickets;
+            
+            // Calculate user's ticket stats
+            const myOpen = tickets.filter(t => ['UNASSIGNED', 'ASSIGNED'].includes(t.status)).length;
+            const myInProgress = tickets.filter(t => t.status === 'IN_PROGRESS').length;
+            const myResolved = tickets.filter(t => t.status === 'RESOLVED').length;
+            const myTotal = tickets.length;
+            
+            // Update stat cards with user-specific labels
+            updateStatCard('openTicketsCount', myOpen);
+            document.querySelector('#openTicketsCount').closest('.stat-card').querySelector('.stat-label').textContent = 'My Open Tickets';
+            
+            updateStatCard('inProgressCount', myInProgress);
+            document.querySelector('#inProgressCount').closest('.stat-card').querySelector('.stat-label').textContent = 'In Progress';
+            
+            updateStatCard('slaViolationsCount', myResolved);
+            document.querySelector('#slaViolationsCount').closest('.stat-card').querySelector('.stat-label').textContent = 'Resolved';
+            document.querySelector('#slaViolationsCount').closest('.stat-card').classList.remove('stat-card-danger');
+            document.querySelector('#slaViolationsCount').closest('.stat-card').classList.add('stat-card-success');
+            
+            updateStatCard('aiRecommendationsCount', myTotal);
+            document.querySelector('#aiRecommendationsCount').closest('.stat-card').querySelector('.stat-label').textContent = 'Total Tickets';
+            
+            // Hide change indicators for user dashboard
+            document.querySelectorAll('.stat-change').forEach(el => el.style.display = 'none');
+        } else {
+            // No tickets yet
+            updateStatCard('openTicketsCount', 0);
+            updateStatCard('inProgressCount', 0);
+            updateStatCard('slaViolationsCount', 0);
+            updateStatCard('aiRecommendationsCount', 0);
+        }
+    } catch (error) {
+        console.error('Failed to load user ticket statistics:', error);
+        // Show zeros on error
+        updateStatCard('openTicketsCount', 0);
+        updateStatCard('inProgressCount', 0);
+        updateStatCard('slaViolationsCount', 0);
+        updateStatCard('aiRecommendationsCount', 0);
     }
 }
 
@@ -189,7 +286,17 @@ function updateChangeIndicator(elementId, value, invertColors = false, isPending
  */
 async function loadChartData() {
     const chartContainer = document.getElementById('barChart');
+    const chartCard = chartContainer?.closest('.card');
+    
     if (!chartContainer) return;
+    
+    // Hide chart for STUDENT/DOCTOR - they don't need system-wide trends
+    if (state.userRole === 'STUDENT' || state.userRole === 'DOCTOR') {
+        if (chartCard) {
+            chartCard.closest('.col-12').style.display = 'none';
+        }
+        return;
+    }
 
     try {
         const trendData = await TicketService.getTrends(state.chartPeriod);
@@ -295,7 +402,15 @@ function renderChart(container, data) {
  */
 async function loadRecentActivity() {
     const container = document.getElementById('recentActivity');
+    const activityCard = container?.closest('.card');
+    const cardTitle = activityCard?.querySelector('.card-title');
+    
     if (!container) return;
+    
+    // Customize activity title for STUDENT/DOCTOR
+    if ((state.userRole === 'STUDENT' || state.userRole === 'DOCTOR') && cardTitle) {
+        cardTitle.innerHTML = '<i class="bi bi-clock-history me-2"></i>My Ticket Activity';
+    }
 
     try {
         const activities = await TicketService.getRecentActivity(8);
@@ -369,11 +484,33 @@ function renderActivityList(container, activities) {
 async function loadHighPriorityTickets() {
     const tableBody = document.getElementById('priorityTicketsTable');
     const emptyState = document.getElementById('priorityTicketsEmpty');
+    const cardHeader = document.querySelector('#priorityTicketsTable')?.closest('.card')?.querySelector('.card-header h5');
+    
     if (!tableBody) return;
 
     try {
-        const response = await TicketService.getHighPriority(5);
-        const tickets = response.tickets || response;
+        let tickets;
+        
+        // For STUDENT/DOCTOR: Show their own tickets (not just high priority)
+        if (state.userRole === 'STUDENT' || state.userRole === 'DOCTOR') {
+            const user = AuthService.getCurrentUser();
+            const response = await TicketService.getTickets({
+                requester: user.email,
+                page: 1,
+                pageSize: 5
+            });
+            tickets = response.tickets || response;
+            
+            // Update card title
+            if (cardHeader) {
+                cardHeader.innerHTML = '<i class="bi bi-ticket-detailed me-2 text-primary"></i>My Recent Tickets';
+            }
+        } else {
+            // For other roles: Show high priority tickets
+            const response = await TicketService.getHighPriority(5);
+            tickets = response.tickets || response;
+        }
+        
         renderPriorityTickets(tableBody, emptyState, tickets);
     } catch (error) {
         console.error('Failed to load priority tickets:', error);
@@ -455,7 +592,17 @@ function formatStatus(status) {
 async function loadActiveWorkflows() {
     const tableBody = document.getElementById('activeWorkflowsTable');
     const emptyState = document.getElementById('activeWorkflowsEmpty');
+    const workflowCard = document.querySelector('#activeWorkflowsTable')?.closest('.card');
+    
     if (!tableBody) return;
+    
+    // Hide workflows section for STUDENT/DOCTOR
+    if (state.userRole === 'STUDENT' || state.userRole === 'DOCTOR') {
+        if (workflowCard) {
+            workflowCard.closest('.col-12').style.display = 'none';
+        }
+        return;
+    }
 
     try {
         const workflows = await WorkflowService.getActiveWorkflows(5);
