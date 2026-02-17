@@ -140,8 +140,48 @@ async function loadMyTickets() {
     listEl.innerHTML = '';
     
     try {
-        const response = await WorkflowService.getTechnicianTickets(state.currentUser.id);
-        state.myTickets = response.data || [];
+        console.log('═══════════════════════════════════════════');
+        console.log('[Junior Dashboard] Loading My Tickets');
+        console.log('[Junior Dashboard] Current User:', state.currentUser);
+        
+        // Build filters for assigned tickets
+        const filters = {};
+        
+        // Get technician level for filtering
+        const techLevel = AuthService.getTechnicianLevel();
+        if (techLevel) {
+            filters.support_level = techLevel;
+            console.log('[Junior Dashboard] Support Level Filter:', techLevel);
+        }
+        
+        // Get building from user profile
+        const building = state.currentUser.building || AuthService.getUserBuilding();
+        if (building) {
+            filters.building = building;
+            console.log('[Junior Dashboard] Building Filter:', building);
+        }
+        
+        console.log('[Junior Dashboard] Calling TicketService.getTicketsByTechnician');
+        console.log('[Junior Dashboard] Technician ID:', state.currentUser.id);
+        console.log('[Junior Dashboard] Filters:', filters);
+        
+        // Use TicketService directly with filters: assigned_to, support_level, building
+        const response = await TicketService.getTicketsByTechnician(state.currentUser.id, filters);
+        
+        console.log('[Junior Dashboard] API Response:', response);
+        
+        // Handle different response formats
+        if (response.data) {
+            state.myTickets = Array.isArray(response.data) ? response.data : [];
+        } else if (Array.isArray(response)) {
+            state.myTickets = response;
+        } else {
+            state.myTickets = [];
+        }
+        
+        console.log('[Junior Dashboard] Parsed Tickets:', state.myTickets);
+        console.log('[Junior Dashboard] Ticket Count:', state.myTickets.length);
+        console.log('═══════════════════════════════════════════');
         
         if (state.myTickets.length === 0) {
             loadingEl.style.display = 'none';
@@ -164,7 +204,13 @@ async function loadMyTickets() {
         renderMyTickets();
         
     } catch (error) {
-        console.error('Error loading my tickets:', error);
+        console.error('═══ ERROR ═══');
+        console.error('[Junior Dashboard] Error loading my tickets:', error);
+        console.error('[Junior Dashboard] Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
+        console.error('═══════════════');
         loadingEl.style.display = 'none';
         UI.showToast('Failed to load your tickets', 'error');
     }
@@ -183,27 +229,51 @@ async function loadAvailableTickets() {
     listEl.innerHTML = '';
     
     try {
-        // Get group ID from user (you'll need to add this to user data)
-        const groupId = state.currentUser.group_id || state.currentUser.supportGroupId || 1;
+        console.log('═════════════════════════════════════════════');
+        console.log('[Junior Dashboard] Loading Available Tickets');
         
-        let filters = { status: 'UNASSIGNED' };
+        // Build filters for unassigned/available tickets
+        let filters = { 
+            status: 'UNASSIGNED'  // Only show tickets not yet assigned
+        };
         
         // Apply additional filters for TECHNICIAN role
         if (AuthService.isTechnician() && !AuthService.isSenior() && !AuthService.isSupervisor()) {
             // Technicians only see tickets from their building
-            if (AuthService.getUserBuilding()) {
-                filters.building = AuthService.getUserBuilding();
+            const building = AuthService.getUserBuilding() || state.currentUser.building;
+            if (building) {
+                filters.building = building;
+                console.log('[Junior Dashboard] Building Filter:', building);
             }
             
             // Filter by technician level if available
             const techLevel = AuthService.getTechnicianLevel();
             if (techLevel) {
-                filters.technicianLevel = techLevel;
+                filters.support_level = techLevel;
+                console.log('[Junior Dashboard] Support Level Filter:', techLevel);
             }
         }
         
-        const response = await WorkflowService.getGroupTickets(groupId, filters);
-        state.availableTickets = response.data || [];
+        console.log('[Junior Dashboard] Calling TicketService.getTickets for available tickets');
+        console.log('[Junior Dashboard] Filters:', filters);
+        
+        // Use TicketService directly to get unassigned tickets
+        const response = await TicketService.getTickets(filters);
+        
+        console.log('[Junior Dashboard] Available Tickets Response:', response);
+        
+        // Handle different response formats
+        if (response.data) {
+            state.availableTickets = Array.isArray(response.data) ? response.data : [];
+        } else if (Array.isArray(response)) {
+            state.availableTickets = response;
+        } else {
+            state.availableTickets = [];
+        }
+        
+        console.log('[Junior Dashboard] Available Tickets:', state.availableTickets);
+        console.log('[Junior Dashboard] Available Ticket Count:', state.availableTickets.length);
+        console.log('═════════════════════════════════════════════');
         
         if (state.availableTickets.length === 0) {
             loadingEl.style.display = 'none';
@@ -227,7 +297,13 @@ async function loadAvailableTickets() {
         renderAvailableTickets();
         
     } catch (error) {
-        console.error('Error loading available tickets:', error);
+        console.error('═══ ERROR ═══');
+        console.error('[Junior Dashboard] Error loading available tickets:', error);
+        console.error('[Junior Dashboard] Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
+        console.error('═════════════');
         loadingEl.style.display = 'none';
         UI.showToast('Failed to load available tickets', 'error');
     }
@@ -429,18 +505,25 @@ window.claimTicket = async function(ticketId) {
         return;
     }
     
+    console.log('[Junior Dashboard] Claiming ticket:', ticketId);
     UI.showToast('Claiming ticket...', 'info');
     
     try {
-        await WorkflowService.claimTicket(ticketId, state.currentUser.id);
+        const result = await WorkflowService.claimTicket(ticketId, state.currentUser.id);
+        console.log('[Junior Dashboard] Claim result:', result);
+        
         UI.showToast('Ticket claimed successfully!', 'success');
+        
+        console.log('[Junior Dashboard] Refreshing dashboard after claim...');
         await loadDashboardData();
         
         // Switch to my tickets tab
         const myTicketsTab = new bootstrap.Tab(document.getElementById('my-tickets-tab'));
         myTicketsTab.show();
+        
+        console.log('[Junior Dashboard] Dashboard refresh complete');
     } catch (error) {
-        console.error('Error claiming ticket:', error);
+        console.error('[Junior Dashboard] Error claiming ticket:', error);
         UI.showToast(error.message || 'Failed to claim ticket', 'error');
     }
 };

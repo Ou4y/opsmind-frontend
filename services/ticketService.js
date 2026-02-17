@@ -58,6 +58,9 @@ const TicketService = {
      * @param {string} options.dateRange - Date range filter
      * @param {string} options.sortBy - Sort field
      * @param {string} options.sortOrder - Sort direction (asc/desc)
+     * @param {string} options.assigned_to - Filter by assigned technician ID
+     * @param {string} options.support_level - Filter by support level (JUNIOR/SENIOR/SUPERVISOR)
+     * @param {string} options.building - Filter by building
      * @returns {Promise<Object>} Tickets list with pagination info
      */
     async getTickets(options = {}) {
@@ -73,9 +76,15 @@ const TicketService = {
         if (options.dateRange) params.append('dateRange', options.dateRange);
         if (options.sortBy) params.append('sortBy', options.sortBy);
         if (options.sortOrder) params.append('sortOrder', options.sortOrder);
+        if (options.assigned_to) params.append('assigned_to', options.assigned_to);
+        if (options.support_level) params.append('support_level', options.support_level);
+        if (options.building) params.append('building', options.building);
 
         const queryString = params.toString();
         const url = `${API_BASE_URL}/tickets${queryString ? '?' + queryString : ''}`;
+
+        console.log('[TicketService.getTickets] API Endpoint:', url);
+        console.log('[TicketService.getTickets] Filters:', options);
 
         const response = await fetch(url, {
             method: 'GET',
@@ -85,7 +94,9 @@ const TicketService = {
             }
         });
 
-        return handleResponse(response);
+        const data = await handleResponse(response);
+        console.log('[TicketService.getTickets] Response:', data);
+        return data;
     },
 
     /**
@@ -219,6 +230,27 @@ const TicketService = {
         });
 
         return handleResponse(response);
+    },
+
+    /**
+     * Get tickets assigned to a technician with filters
+     * @param {string} technicianId - Technician user ID
+     * @param {Object} options - Additional filters
+     * @param {string} options.status - Filter by status
+     * @param {string} options.support_level - Filter by support level
+     * @param {string} options.building - Filter by building
+     * @returns {Promise<Object>} Technician's assigned tickets
+     */
+    async getTicketsByTechnician(technicianId, options = {}) {
+        const filters = {
+            assigned_to: technicianId,
+            ...options
+        };
+        
+        console.log('[TicketService.getTicketsByTechnician] Fetching tickets for technician:', technicianId);
+        console.log('[TicketService.getTicketsByTechnician] Filters:', filters);
+        
+        return this.getTickets(filters);
     },
 
     /**
