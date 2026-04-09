@@ -122,13 +122,13 @@ const TicketService = {
      * @param {string} ticketData.title - Ticket title
      * @param {string} ticketData.description - Ticket description
      * @param {string} ticketData.type_of_request - Type: INCIDENT, SERVICE_REQUEST, MAINTENANCE
-     * @param {string} ticketData.building - Building location
-     * @param {string} ticketData.room - Room number
+     * @param {number} ticketData.latitude - Location latitude coordinate
+     * @param {number} ticketData.longitude - Location longitude coordinate
      * @param {string} ticketData.requester_id - Requester user ID
      * @returns {Promise<Object>} Created ticket
      */
     async createTicket(ticketData) {
-        // Backend expects: title, description, type_of_request, building, room, requester_id
+        // Backend expects: title, description, type_of_request, latitude, longitude, requester_id
         const response = await fetch(`${API_BASE_URL}/tickets`, {
             method: 'POST',
             headers: {

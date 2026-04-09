@@ -10,6 +10,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <!-- Custom CSS -->
     <link href="/assets/css/main.css" rel="stylesheet">
 
@@ -70,6 +72,70 @@
         
         .flex-grow-1 {
             flex-grow: 1;
+        }
+        
+        /* Location Picker Styles */
+        #mapContainer {
+            transition: border-color 0.3s ease;
+        }
+        
+        #mapContainer:hover {
+            border-color: #667eea !important;
+        }
+        
+        .location-card {
+            transition: box-shadow 0.3s ease;
+        }
+        
+        #locationStatus {
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        #useLocationBtn {
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        #useLocationBtn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* Map Styles */
+        #mapContainer {
+            z-index: 1;
+        }
+        
+        .leaflet-container {
+            border-radius: 8px;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            #mapContainer {
+                height: 250px !important;
+            }
+            
+            #useLocationBtn {
+                font-size: 0.95rem;
+                padding: 0.6rem 1rem;
+            }
+            
+            #locationStatus {
+                font-size: 0.85rem;
+            }
+            
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+        }
+        
+        /* Touch-friendly buttons */
+        @media (hover: none) {
+            #useLocationBtn {
+                padding: 0.75rem 1rem;
+            }
         }
     </style>
 </head>
@@ -331,6 +397,10 @@
                                     <p class="mb-0 fw-medium" id="ticketRequester"></p>
                                 </div>
                                 <div class="col-6 col-md-3">
+                                    <label class="text-muted small">Assigned To</label>
+                                    <p class="mb-0 fw-medium" id="ticketAssignedTo"></p>
+                                </div>
+                                <div class="col-6 col-md-3">
                                     <label class="text-muted small">Assigned Level</label>
                                     <p class="mb-0 fw-medium" id="ticketAssignedLevel"></p>
                                 </div>
@@ -453,24 +523,49 @@
                                 <input type="text" class="form-control" id="newTicketPriority" value="System Assigned" disabled>
                                 <small class="text-muted">Priority will be automatically assigned</small>
                             </div>
-                            <!-- Building -->
-                            <div class="col-12 col-md-6">
-                                <label for="newTicketBuilding" class="form-label">Building <span class="text-danger">*</span></label>
-                                <select class="form-select" id="newTicketBuilding" required>
-                                    <option value="">Select Building</option>
-                                    <option value="Main">Main</option>
-                                    <option value="S">S</option>
-                                    <option value="N">N</option>
-                                    <option value="R">R</option>
-                                    <option value="K">K</option>
-                                </select>
-                                <div class="invalid-feedback">Please select a building.</div>
-                            </div>
-                            <!-- Room -->
-                            <div class="col-12 col-md-6">
-                                <label for="newTicketRoom" class="form-label">Room <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="newTicketRoom" required placeholder="e.g., Room 101">
-                                <div class="invalid-feedback">Please enter the room number.</div>
+                            <!-- Location Section -->
+                            <div class="col-12">
+                                <label class="form-label">Location <span class="text-danger">*</span></label>
+                                <div class="card border-secondary">
+                                    <div class="card-body">
+                                        <!-- Use My Location Button -->
+                                        <div class="d-grid gap-2 mb-3">
+                                            <button type="button" class="btn btn-outline-primary" id="useLocationBtn">
+                                                <i class="bi bi-geo-alt-fill me-2"></i>Use My Current Location
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Location Status -->
+                                        <div id="locationStatus" class="alert alert-info mb-3 d-none">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            <span id="locationStatusText"></span>
+                                        </div>
+                                        
+                                        <!-- Hidden Location Inputs -->
+                                        <input type="hidden" id="newTicketLatitude" required>
+                                        <input type="hidden" id="newTicketLongitude" required>
+                                        
+                                        <!-- Manual Coordinates -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-6">
+                                                <label for="manualLatitude" class="form-label small">Latitude</label>
+                                                <input type="number" class="form-control form-control-sm" id="manualLatitude" step="0.000001" placeholder="e.g., 30.0444">
+                                            </div>
+                                            <div class="col-6">
+                                                <label for="manualLongitude" class="form-label small">Longitude</label>
+                                                <input type="number" class="form-control form-control-sm" id="manualLongitude" step="0.000001" placeholder="e.g., 31.2357">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Interactive Map -->
+                                        <div id="mapPicker">
+                                            <label class="form-label small mb-2">Location on Map</label>
+                                            <div id="mapContainer" style="height: 300px; border-radius: 8px; border: 2px solid #dee2e6; overflow: hidden;"></div>
+                                            <small class="text-muted mt-2 d-block"><i class="bi bi-info-circle me-1"></i>Click on the map to set location, or use the button/coordinates above</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="invalid-feedback" id="locationError">Please provide a location by using your current location or entering coordinates manually.</div>
                             </div>
                             <!-- Description -->
                             <div class="col-12">
@@ -753,6 +848,8 @@
 
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS for Maps -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Sidebar Toggle (inline for immediate functionality) -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {

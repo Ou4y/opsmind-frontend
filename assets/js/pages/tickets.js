@@ -38,7 +38,9 @@ const state = {
     sortOrder: 'desc',
     selectedTicket: null,
     isLoading: false,
-    viewMode: 'table' // 'table' or 'card'
+    viewMode: 'table', // 'table' or 'card'
+    map: null, // Leaflet map instance
+    mapMarker: null // Map marker instance
 };
 
 /**
@@ -206,6 +208,13 @@ function setupEventListeners() {
     // Add event listener for delete confirmation
     const deleteBtn = document.getElementById('confirmDeleteTicketBtn');
     deleteBtn?.addEventListener('click', handleDeleteTicket);
+
+    // Location features
+    document.getElementById('useLocationBtn')?.addEventListener('click', handleUseLocation);
+    
+    // Manual coordinate inputs
+    document.getElementById('manualLatitude')?.addEventListener('input', handleManualCoordinates);
+    document.getElementById('manualLongitude')?.addEventListener('input', handleManualCoordinates);
 }
 
 /**
@@ -410,9 +419,10 @@ function renderTableView(tableBody) {
                     </span>
                 </td>
                 <td>
-                    <span class="${ticket.assignee ? '' : 'text-muted'}">
-                        ${ticket.assignee ? UI.escapeHTML(ticket.assignee) : 'Unassigned'}
-                    </span>
+                    ${ticket.assigned_to ? 
+                        `<span class="badge bg-info text-dark">Technician #${UI.escapeHTML(ticket.assigned_to)}</span>` : 
+                        `<span class="text-muted">Unassigned</span>`
+                    }
                 </td>
                 <td>
                     <span class="text-muted">${UI.formatRelativeTime(ticket.createdAt)}</span>
@@ -674,6 +684,15 @@ function populateTicketModal(ticket) {
 
     // Details
     document.getElementById('ticketRequester').textContent = ticket.requester_id || ticket.requesterName || ticket.requester || 'Unknown';
+    
+    // Assigned To
+    const assignedToEl = document.getElementById('ticketAssignedTo');
+    if (ticket.assigned_to) {
+        assignedToEl.innerHTML = `<span class="badge bg-info text-dark">Technician #${ticket.assigned_to}</span>`;
+    } else {
+        assignedToEl.innerHTML = `<span class="text-muted">Unassigned</span>`;
+    }
+    
     document.getElementById('ticketAssignedLevel').textContent = ticket.assigned_to_level || 'L1';
     document.getElementById('ticketSupportLevel').textContent = ticket.support_level || 'L1';
     document.getElementById('ticketEscalationCount').textContent = ticket.escalation_count || 0;
@@ -901,6 +920,99 @@ function openCreateModal() {
     
     const modalInstance = new bootstrap.Modal(modal);
     modalInstance.show();
+    
+    // Initialize map after modal is shown
+    modal.addEventListener('shown.bs.modal', function() {
+        initializeMap();
+    }, { once: true });
+}
+
+/**
+ * Initialize Leaflet map
+ */
+function initializeMap() {
+    const mapContainer = document.getElementById('mapContainer');
+    
+    if (!mapContainer) return;
+    
+    // If map already exists, remove it
+    if (state.map) {
+        state.map.remove();
+        state.map = null;
+        state.mapMarker = null;
+    }
+    
+    // Create map centered on a default location (Cairo, Egypt as example)
+    state.map = L.map('mapContainer').setView([30.0444, 31.2357], 13);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(state.map);
+    
+    // Add click handler to map
+    state.map.on('click', function(e) {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        updateLocationFromMap(lat, lng);
+    });
+    
+    // Force map to resize properly
+    setTimeout(() => {
+        state.map.invalidateSize();
+    }, 100);
+}
+
+/**
+ * Update location from map click
+ */
+function updateLocationFromMap(lat, lng) {
+    // Update hidden inputs
+    document.getElementById('newTicketLatitude').value = lat;
+    document.getElementById('newTicketLongitude').value = lng;
+    
+    // Update manual inputs
+    document.getElementById('manualLatitude').value = lat.toFixed(6);
+    document.getElementById('manualLongitude').value = lng.toFixed(6);
+    
+    // Update marker on map
+    updateMapMarker(lat, lng);
+    
+    // Show success message
+    const statusDiv = document.getElementById('locationStatus');
+    const statusText = document.getElementById('locationStatusText');
+    statusDiv.classList.remove('d-none', 'alert-danger', 'alert-info');
+    statusDiv.classList.add('alert-success');
+    statusText.innerHTML = `<strong>Location set!</strong> Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+}
+
+/**
+ * Update or create map marker
+ */
+function updateMapMarker(lat, lng) {
+    if (!state.map) return;
+    
+    // Remove existing marker if present
+    if (state.mapMarker) {
+        state.map.removeLayer(state.mapMarker);
+    }
+    
+    // Add new marker
+    state.mapMarker = L.marker([lat, lng], {
+        icon: L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        })
+    }).addTo(state.map);
+    
+    // Center map on marker
+    state.map.setView([lat, lng], 13);
 }
 
 /**
@@ -991,7 +1103,22 @@ async function loadAssignees() {
 async function handleCreateTicket(e) {
     e.preventDefault();
     const form = e.target;
+    
+    // Custom validation for location
+    const latitude = document.getElementById('newTicketLatitude').value;
+    const longitude = document.getElementById('newTicketLongitude').value;
+    const locationError = document.getElementById('locationError');
+    
+    if (!latitude || !longitude) {
+        locationError.style.display = 'block';
+        UI.error('Please provide a location');
+        return;
+    }
+    
+    locationError.style.display = 'none';
+    
     if (!UI.validateForm(form)) return;
+    
     const submitBtn = document.getElementById('submitTicketBtn');
     UI.setButtonLoading(submitBtn, true);
 
@@ -999,27 +1126,29 @@ async function handleCreateTicket(e) {
     const title = document.getElementById('newTicketSubject').value.trim();
     const description = document.getElementById('newTicketDescription').value.trim();
     const type_of_request = document.getElementById('newTicketType')?.value || 'INCIDENT';
-    const building = document.getElementById('newTicketBuilding')?.value.trim();
-    const room = document.getElementById('newTicketRoom')?.value.trim();
+    
+    // Location data (required)
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
     
     // Get current user ID as requester_id
     const currentUser = AuthService.getUser?.();
     const requester_id = currentUser?.id || currentUser?.userId || currentUser?.email || '';
 
-    // Guard: backend requires title, description, type_of_request, building, room, requester_id
-    if (!title || !description || !type_of_request || !building || !room || !requester_id) {
+    // Guard: backend requires title, description, type_of_request, latitude, longitude, requester_id
+    if (!title || !description || !type_of_request || isNaN(lat) || isNaN(lng) || !requester_id) {
         UI.setButtonLoading(submitBtn, false);
         UI.error('All required fields must be filled');
         return;
     }
 
-    // Build ticketData exactly as backend expects
+    // Build ticketData with location coordinates only
     const ticketData = {
         title,
         description,
         type_of_request,
-        building,
-        room,
+        latitude: lat,
+        longitude: lng,
         requester_id
     };
 
@@ -1029,6 +1158,11 @@ async function handleCreateTicket(e) {
         bootstrap.Modal.getInstance(document.getElementById('createTicketModal'))?.hide();
         form.reset();
         UI.resetFormValidation(form);
+        // Reset location fields
+        document.getElementById('newTicketLatitude').value = '';
+        document.getElementById('newTicketLongitude').value = '';
+        document.getElementById('locationStatus').classList.add('d-none');
+        document.getElementById('mapPicker').classList.add('d-none');
         state.currentPage = 1;
         await loadTickets();
     } catch (error) {
@@ -1040,6 +1174,130 @@ async function handleCreateTicket(e) {
 }
 
 /**
+ * Handle "Use My Location" button click
+ */
+async function handleUseLocation() {
+    const btn = document.getElementById('useLocationBtn');
+    const statusDiv = document.getElementById('locationStatus');
+    const statusText = document.getElementById('locationStatusText');
+    const latInput = document.getElementById('newTicketLatitude');
+    const lngInput = document.getElementById('newTicketLongitude');
+    const mapPicker = document.getElementById('mapPicker');
+    
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+        UI.error('Geolocation is not supported by your browser');
+        return;
+    }
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class=\"spinner-border spinner-border-sm me-2\"></span>Getting location...';
+    statusDiv.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+    statusDiv.classList.add('alert-info');
+    statusText.textContent = 'Requesting location permission...';
+    
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            // Success
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            latInput.value = lat;
+            lngInput.value = lng;
+            
+            // Update manual inputs
+            document.getElementById('manualLatitude').value = lat.toFixed(6);
+            document.getElementById('manualLongitude').value = lng.toFixed(6);
+            
+            // Show success message
+            statusDiv.classList.remove('alert-info');
+            statusDiv.classList.add('alert-success');
+            statusText.innerHTML = `<strong>Location captured!</strong> Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+            
+            // Show map picker
+            mapPicker.classList.remove('d-none');
+            updateMapDisplay(lat, lng);
+            
+            // Reset button
+            btn.disabled = false;
+            btn.innerHTML = '<i class=\"bi bi-geo-alt-fill me-2\"></i>Use My Current Location';
+        },
+        (error) => {
+            // Error
+            let errorMessage = 'Unable to get location';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage = 'Location information unavailable.';
+                    break;
+                case error.TIMEOUT:
+                    errorMessage = 'Location request timed out.';
+                    break;
+            }
+            
+            statusDiv.classList.remove('alert-info');
+            statusDiv.classList.add('alert-danger');
+            statusText.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> ${errorMessage}`;
+            
+            // Reset button
+            btn.disabled = false;
+            btn.innerHTML = '<i class=\"bi bi-geo-alt-fill me-2\"></i>Use My Current Location';
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+/**
+ * Handle manual coordinate input
+ */
+function handleManualCoordinates() {
+    const manualLat = document.getElementById('manualLatitude').value;
+    const manualLng = document.getElementById('manualLongitude').value;
+    const latInput = document.getElementById('newTicketLatitude');
+    const lngInput = document.getElementById('newTicketLongitude');
+    const statusDiv = document.getElementById('locationStatus');
+    const statusText = document.getElementById('locationStatusText');
+    const mapPicker = document.getElementById('mapPicker');
+    
+    if (manualLat && manualLng) {
+        const lat = parseFloat(manualLat);
+        const lng = parseFloat(manualLng);
+        
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            latInput.value = lat;
+            lngInput.value = lng;
+            
+            // Show success message
+            statusDiv.classList.remove('d-none', 'alert-danger', 'alert-info');
+            statusDiv.classList.add('alert-success');
+            statusText.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i><strong>Location set!</strong> Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            
+            // Update map marker
+            updateMapMarker(lat, lng);
+        } else {
+            statusDiv.classList.remove('d-none', 'alert-success', 'alert-info');
+            statusDiv.classList.add('alert-danger');
+            statusText.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Invalid coordinates.</strong> Latitude must be between -90 and 90, Longitude between -180 and 180.';
+        }
+    }
+}
+
+/**
+ * Update map display with coordinates
+ */
+function updateMapDisplay(lat, lng) {
+    // This function is now handled by updateMapMarker
+    updateMapMarker(lat, lng);
+}
+
+/**
  * Handle AI Help button click
  */
 async function handleAIHelp() {
@@ -1047,8 +1305,8 @@ async function handleAIHelp() {
     const title = document.getElementById('newTicketSubject')?.value.trim() || '';
     const description = document.getElementById('newTicketDescription')?.value.trim() || '';
     const type = document.getElementById('newTicketType')?.value || '';
-    const building = document.getElementById('newTicketBuilding')?.value || '';
-    const room = document.getElementById('newTicketRoom')?.value || '';
+    const latitude = document.getElementById('newTicketLatitude')?.value || '';
+    const longitude = document.getElementById('newTicketLongitude')?.value || '';
     
     // Check if user has filled in at least title and description
     if (!title || !description) {
@@ -1078,8 +1336,7 @@ async function handleAIHelp() {
 **Description:** ${description}
 
 ${type ? `**Type:** ${type}` : ''}
-${building ? `**Building:** ${building}` : ''}
-${room ? `**Room:** ${room}` : ''}
+${latitude && longitude ? `**Location:** Lat: ${latitude}, Lng: ${longitude}` : ''}
 
 As an IT support expert, please provide:
 1. A brief analysis of the issue

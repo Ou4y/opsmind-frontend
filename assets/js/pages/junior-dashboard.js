@@ -25,8 +25,11 @@ const state = {
     slaData: {},
     currentUser: null,
     isLoading: false,
-    refreshInterval: null
+    refreshInterval: null,
+    locationWatchId: null
 };
+
+const geoOptions = { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 };
 
 /**
  * Initialize the junior dashboard page
@@ -41,6 +44,9 @@ export async function initJuniorDashboard() {
         window.location.href = '/index.html';
         return;
     }
+
+    // Start continuous location tracking
+    startLocationTracking();
     
     // Set up event listeners
     setupEventListeners();
@@ -98,6 +104,7 @@ function setupEventListeners() {
         if (state.refreshInterval) {
             clearInterval(state.refreshInterval);
         }
+        stopLocationTracking();
     });
 }
 
@@ -769,6 +776,87 @@ function getActionColor(action) {
     }
 }
 
+/**
+ * Start watching technician location
+ */
+function startLocationTracking() {
+    if (state.locationWatchId !== null) return state.locationWatchId;
+
+    if (!state.currentUser || !state.currentUser.id) {
+        console.warn('Cannot start location tracking: missing technician id');
+        return null;
+    }
+
+    if (!('geolocation' in navigator)) {
+        UI.showToast('Geolocation is not supported by this browser.', 'error');
+        return null;
+    }
+
+    state.locationWatchId = navigator.geolocation.watchPosition(
+        position => sendLocationUpdate(state.currentUser.id, position.coords),
+        handleLocationError,
+        geoOptions
+    );
+
+    return state.locationWatchId;
+}
+
+/**
+ * Send location update to backend
+ */
+async function sendLocationUpdate(technicianId, coords) {
+    try {
+        const response = await fetch('/api/technicians/location', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                technician_id: technicianId,
+                latitude: coords.latitude,
+                longitude: coords.longitude
+            })
+        });
+
+        if (!response.ok) {
+            const detail = await response.text().catch(() => '');
+            throw new Error(detail || `HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error sending location update:', error);
+        UI.showToast('Failed to update location.', 'error');
+    }
+}
+
+/**
+ * Stop watching technician location
+ */
+function stopLocationTracking() {
+    if (state.locationWatchId !== null) {
+        navigator.geolocation.clearWatch(state.locationWatchId);
+        state.locationWatchId = null;
+    }
+}
+
+/**
+ * Handle geolocation errors
+ */
+function handleLocationError(error) {
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            UI.showToast('Location permission denied.', 'error');
+            stopLocationTracking();
+            break;
+        case error.POSITION_UNAVAILABLE:
+            UI.showToast('Location unavailable.', 'warning');
+            break;
+        case error.TIMEOUT:
+            UI.showToast('Location request timed out.', 'warning');
+            break;
+        default:
+            UI.showToast('Unable to retrieve location.', 'error');
+    }
+    console.error('Geolocation error:', error);
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initJuniorDashboard);
@@ -779,5 +867,8 @@ if (document.readyState === 'loading') {
 // Export for use in other modules
 export default {
     initJuniorDashboard,
-    loadDashboardData
+    loadDashboardData,
+    startLocationTracking,
+    stopLocationTracking,
+    sendLocationUpdate
 };
