@@ -357,9 +357,10 @@ function createTicketCard(ticket, type) {
                     </div>
                     <h6 class="card-subtitle mb-2">${UI.escapeHTML(ticket.title)}</h6>
                     <div class="text-muted small">
-                        <div><i class="bi bi-geo-alt me-1"></i> ${UI.escapeHTML(ticket.building)} - Floor ${ticket.floor} - Room ${ticket.room}</div>
+                        <div><i class="bi bi-geo-alt me-1"></i> Location: ${ticket.latitude && ticket.longitude ? `${ticket.latitude}, ${ticket.longitude}` : 'Not available'}</div>
+                        ${ticket.latitude && ticket.longitude ? `<div><a href="https://www.google.com/maps?q=${ticket.latitude},${ticket.longitude}" target="_blank" class="text-decoration-none"><i class="bi bi-map me-1"></i> Open in Maps</a></div>` : ''}
                         <div><i class="bi bi-person me-1"></i> Requester: ${UI.escapeHTML(ticket.requester_name || 'N/A')}</div>
-                        ${ticket.assigned_to ? `<div><i class="bi bi-person-badge me-1"></i> Assigned to: User #${ticket.assigned_to}</div>` : '<div><i class="bi bi-inbox me-1"></i> Unassigned</div>'}
+                        ${ticket.assigned_to ? `<div><i class="bi bi-person-badge me-1"></i> Assigned to: ${UI.escapeHTML(ticket.assigned_to_name || ticket.assignedToName || `User #${ticket.assigned_to}`)}</div>` : '<div><i class="bi bi-inbox me-1"></i> Unassigned</div>'}
                         <div><i class="bi bi-calendar me-1"></i> Created: ${UI.formatDate(ticket.created_at)}</div>
                     </div>
                 </div>
@@ -406,8 +407,9 @@ function createReviewCard(ticket) {
                     </div>
                     <h6 class="card-subtitle mb-2">${UI.escapeHTML(ticket.title)}</h6>
                     <div class="text-muted small">
-                        <div><i class="bi bi-geo-alt me-1"></i> ${UI.escapeHTML(ticket.building)} - Floor ${ticket.floor} - Room ${ticket.room}</div>
-                        <div><i class="bi bi-person-badge me-1"></i> Resolved by: User #${ticket.assigned_to}</div>
+                        <div><i class="bi bi-geo-alt me-1"></i> Location: ${ticket.latitude && ticket.longitude ? `${ticket.latitude}, ${ticket.longitude}` : 'Not available'}</div>
+                        ${ticket.latitude && ticket.longitude ? `<div><a href="https://www.google.com/maps?q=${ticket.latitude},${ticket.longitude}" target="_blank" class="text-decoration-none"><i class="bi bi-map me-1"></i> Open in Maps</a></div>` : ''}
+                        <div><i class="bi bi-person-badge me-1"></i> Resolved by: ${UI.escapeHTML(ticket.assigned_to_name || ticket.assignedToName || `User #${ticket.assigned_to}`)}</div>
                         <div><i class="bi bi-calendar me-1"></i> Resolved: ${UI.formatDate(ticket.updated_at)}</div>
                     </div>
                 </div>

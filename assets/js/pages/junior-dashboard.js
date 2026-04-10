@@ -239,9 +239,11 @@ async function loadAvailableTickets() {
         console.log('═════════════════════════════════════════════');
         console.log('[Junior Dashboard] Loading Available Tickets');
         
-        // Build filters for unassigned/available tickets
+        // Build filters for available tickets
+        // Note: With location-based assignment, tickets are auto-routed
+        // We look for tickets that are OPEN and not yet claimed by anyone
         let filters = { 
-            status: 'UNASSIGNED'  // Only show tickets not yet assigned
+            status: 'OPEN'  // Get open tickets that haven't been started
         };
         
         // Apply additional filters for TECHNICIAN role
@@ -264,7 +266,7 @@ async function loadAvailableTickets() {
         console.log('[Junior Dashboard] Calling TicketService.getTickets for available tickets');
         console.log('[Junior Dashboard] Filters:', filters);
         
-        // Use TicketService directly to get unassigned tickets
+        // Use TicketService directly to get available tickets
         const response = await TicketService.getTickets(filters);
         
         console.log('[Junior Dashboard] Available Tickets Response:', response);
@@ -311,8 +313,21 @@ async function loadAvailableTickets() {
             stack: error.stack
         });
         console.error('═════════════');
+        
         loadingEl.style.display = 'none';
-        UI.showToast('Failed to load available tickets', 'error');
+        emptyEl.style.display = 'block';
+        
+        // Update empty message to explain the error
+        emptyEl.innerHTML = `
+            <i class="bi bi-exclamation-circle text-muted" style="font-size: 3rem;"></i>
+            <p class="mt-3 text-muted">
+                Unable to load available tickets.<br>
+                ${error.message.includes('500') ? 'The ticket service is temporarily unavailable.' : 'Please check your connection and try again.'}
+            </p>
+        `;
+        
+        // Show a less intrusive notification
+        console.warn('Available tickets section is currently unavailable');
     }
 }
 
@@ -364,9 +379,10 @@ function createTicketCard(ticket, type) {
                     </div>
                     <h6 class="card-subtitle mb-2">${UI.escapeHTML(ticket.title)}</h6>
                     <div class="text-muted small">
-                        <div><i class="bi bi-geo-alt me-1"></i> ${UI.escapeHTML(ticket.building)} - Floor ${ticket.floor} - Room ${ticket.room}</div>
+                        <div><i class="bi bi-geo-alt me-1"></i> Location: ${ticket.latitude && ticket.longitude ? `${ticket.latitude}, ${ticket.longitude}` : 'Not available'}</div>
+                        ${ticket.latitude && ticket.longitude ? `<div><a href="https://www.google.com/maps?q=${ticket.latitude},${ticket.longitude}" target="_blank" class="text-decoration-none"><i class="bi bi-map me-1"></i> Open in Maps</a></div>` : ''}
                         <div><i class="bi bi-person me-1"></i> Requester: ${UI.escapeHTML(ticket.requester_name || 'N/A')}</div>
-                        ${ticket.assigned_to ? `<div><i class="bi bi-person-badge me-1"></i> Assigned to: ${UI.escapeHTML(ticket.assigned_to)}</div>` : ''}
+                        ${ticket.assigned_to ? `<div><i class="bi bi-person-badge me-1"></i> Assigned to: ${UI.escapeHTML(ticket.assigned_to_name || ticket.assignedToName || `Technician #${ticket.assigned_to}`)}</div>` : ''}
                         <div><i class="bi bi-calendar me-1"></i> Created: ${UI.formatDate(ticket.created_at)}</div>
                     </div>
                 </div>
@@ -430,9 +446,10 @@ function renderMyTicketActions(ticket) {
 function renderAvailableTicketActions(ticket) {
     let actions = '';
     
-    // Claim button - only visible for TECHNICIAN and above, and only if ticket is UNASSIGNED
+    // Claim button - visible for TECHNICIAN and above
+    // Show for OPEN tickets that are not yet assigned to the current user
     if ((AuthService.isTechnician() || AuthService.isSenior() || AuthService.isSupervisor()) && 
-        ticket.status === 'UNASSIGNED') {
+        ticket.status === 'OPEN' && ticket.assigned_to !== state.currentUser.id) {
         actions += `
             <button class="btn btn-sm btn-success" onclick="window.claimTicket('${ticket.id}')">
                 <i class="bi bi-hand-index me-1"></i> Claim Ticket
@@ -651,7 +668,8 @@ function renderTicketDetails() {
                             </div>
                             <div class="col-md-6">
                                 <strong class="text-muted">Location</strong>
-                                <p class="mb-0">${UI.escapeHTML(ticket.building)} - Floor ${ticket.floor} - Room ${ticket.room}</p>
+                                <p class="mb-0">${ticket.latitude && ticket.longitude ? `${ticket.latitude}, ${ticket.longitude}` : 'Not available'}</p>
+                                ${ticket.latitude && ticket.longitude ? `<a href="https://www.google.com/maps?q=${ticket.latitude},${ticket.longitude}" target="_blank" class="btn btn-sm btn-outline-primary mt-2"><i class="bi bi-map me-1"></i> Open in Maps</a>` : ''}
                             </div>
                             <div class="col-md-6">
                                 <strong class="text-muted">Requester</strong>
@@ -707,13 +725,16 @@ function renderTicketDetails() {
  * Render workflow timeline
  */
 function renderWorkflowTimeline() {
-    if (!state.workflowLogs || state.workflowLogs.length === 0) {
+    // Ensure workflowLogs is a valid array
+    const logs = Array.isArray(state.workflowLogs) ? state.workflowLogs : [];
+    
+    if (logs.length === 0) {
         return '<p class="text-muted text-center py-3">No workflow history available</p>';
     }
     
     let html = '<div class="timeline">';
     
-    state.workflowLogs.forEach((log, index) => {
+    logs.forEach((log, index) => {
         const icon = getActionIcon(log.action);
         const color = getActionColor(log.action);
         
@@ -728,7 +749,7 @@ function renderWorkflowTimeline() {
                         <small class="text-muted">${UI.formatDate(log.created_at)}</small>
                     </div>
                     <div class="text-muted small">
-                        ${log.performed_by ? `<div>👤 By: User #${log.performed_by}</div>` : ''}
+                        ${log.performed_by ? `<div>👤 By: ${UI.escapeHTML(log.performed_by_name || log.performedByName || `User #${log.performed_by}`)}</div>` : ''}
                         ${log.from_group_id && log.to_group_id ? `<div>📦 From Group #${log.from_group_id} → Group #${log.to_group_id}</div>` : ''}
                         ${log.from_member_id && log.to_member_id ? `<div>👥 From Member #${log.from_member_id} → Member #${log.to_member_id}</div>` : ''}
                         ${log.reason ? `<div class="mt-1 fst-italic">💬 ${UI.escapeHTML(log.reason)}</div>` : ''}
@@ -803,26 +824,37 @@ function startLocationTracking() {
 
 /**
  * Send location update to backend
+ * Note: This endpoint may not be implemented on the backend yet.
+ * Gracefully handles errors to prevent blocking the UI.
  */
 async function sendLocationUpdate(technicianId, coords) {
     try {
-        const response = await fetch('/api/technicians/location', {
+        // Use the correct backend API endpoint
+        const API_BASE = window.AppConfig?.API_BASE_URL || 'http://localhost:8000';
+        const response = await fetch(`${API_BASE}/api/technicians/${technicianId}/location`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                technician_id: technicianId,
                 latitude: coords.latitude,
                 longitude: coords.longitude
             })
         });
 
         if (!response.ok) {
+            // If endpoint doesn't exist (404), log but don't show error to user
+            if (response.status === 404) {
+                console.warn('Location tracking endpoint not available (404). Location tracking disabled.');
+                stopLocationTracking();
+                return;
+            }
             const detail = await response.text().catch(() => '');
             throw new Error(detail || `HTTP ${response.status}`);
         }
+        console.log('Location updated successfully');
     } catch (error) {
         console.error('Error sending location update:', error);
-        UI.showToast('Failed to update location.', 'error');
+        // Don't show toast for network errors to avoid spamming user
+        // UI.showToast('Failed to update location.', 'error');
     }
 }
 

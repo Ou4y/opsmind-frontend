@@ -420,7 +420,7 @@ function renderTableView(tableBody) {
                 </td>
                 <td>
                     ${ticket.assigned_to ? 
-                        `<span class="badge bg-info text-dark">Technician #${UI.escapeHTML(ticket.assigned_to)}</span>` : 
+                        `<span class="badge bg-info text-dark">${UI.escapeHTML(ticket.assigned_to_name || ticket.assignedToName || `Technician #${ticket.assigned_to}`)}</span>` : 
                         `<span class="text-muted">Unassigned</span>`
                     }
                 </td>
@@ -688,7 +688,8 @@ function populateTicketModal(ticket) {
     // Assigned To
     const assignedToEl = document.getElementById('ticketAssignedTo');
     if (ticket.assigned_to) {
-        assignedToEl.innerHTML = `<span class="badge bg-info text-dark">Technician #${ticket.assigned_to}</span>`;
+        const technicianDisplay = ticket.assigned_to_name || ticket.assignedToName || `Technician #${ticket.assigned_to}`;
+        assignedToEl.innerHTML = `<span class="badge bg-info text-dark">${UI.escapeHTML(technicianDisplay)}</span>`;
     } else {
         assignedToEl.innerHTML = `<span class="text-muted">Unassigned</span>`;
     }
@@ -696,8 +697,23 @@ function populateTicketModal(ticket) {
     document.getElementById('ticketAssignedLevel').textContent = ticket.assigned_to_level || 'L1';
     document.getElementById('ticketSupportLevel').textContent = ticket.support_level || 'L1';
     document.getElementById('ticketEscalationCount').textContent = ticket.escalation_count || 0;
-    document.getElementById('ticketBuilding').textContent = ticket.building || 'N/A';
-    document.getElementById('ticketRoom').textContent = ticket.room || 'N/A';
+    
+    // Display location as coordinates
+    const locationEl = document.getElementById('ticketLocation');
+    if (locationEl) {
+        if (ticket.latitude && ticket.longitude) {
+            locationEl.innerHTML = `
+                ${ticket.latitude}, ${ticket.longitude}
+                <a href="https://www.google.com/maps?q=${ticket.latitude},${ticket.longitude}" 
+                   target="_blank" 
+                   class="btn btn-sm btn-outline-primary ms-2">
+                    <i class="bi bi-map me-1"></i> Open in Maps
+                </a>
+            `;
+        } else {
+            locationEl.textContent = 'Not available';
+        }
+    }
     document.getElementById('ticketCreatedAt').textContent = UI.formatDateTime(ticket.created_at || ticket.createdAt);
     document.getElementById('ticketUpdatedAt').textContent = UI.formatDateTime(ticket.updated_at || ticket.updatedAt);
     document.getElementById('ticketDescription').textContent = ticket.description || 'No description provided.';
@@ -1029,16 +1045,12 @@ function openUpdateModal(ticketId) {
     const descriptionInput = document.getElementById('updateTicketDescription');
     const typeInput = document.getElementById('updateTicketType');
     const statusInput = document.getElementById('updateTicketStatus');
-    const buildingInput = document.getElementById('updateTicketBuilding');
-    const roomInput = document.getElementById('updateTicketRoom');
     const resolutionInput = document.getElementById('updateResolutionSummary');
     
     if (titleInput) titleInput.value = ticket.title || '';
     if (descriptionInput) descriptionInput.value = ticket.description || '';
     if (typeInput) typeInput.value = ticket.type_of_request || ticket.type || 'INCIDENT';
     if (statusInput) statusInput.value = ticket.status || 'OPEN';
-    if (buildingInput) buildingInput.value = ticket.building || '';
-    if (roomInput) roomInput.value = ticket.room || '';
     if (resolutionInput && ticket.resolution_summary) {
         resolutionInput.value = ticket.resolution_summary;
     }

@@ -2,7 +2,7 @@
  * OpsMind - Supervisor Dashboard Module
  * 
  * Handles supervisor functionality:
- * - Building-level overview and analytics
+ * - System-wide overview and analytics
  * - SLA monitoring and compliance reporting
  * - Team performance metrics
  * - Support group management
@@ -228,7 +228,7 @@ function updateOverviewStats() {
 function renderOverviewCharts() {
     renderTicketTrendChart();
     renderPriorityDistribution();
-    renderFloorBreakdown();
+    renderStatusBreakdown();
     renderStatusDistribution();
 }
 
@@ -367,37 +367,50 @@ function renderPriorityDistribution() {
 }
 
 /**
- * Render floor breakdown
+ * Render status breakdown
  */
-function renderFloorBreakdown() {
-    const container = document.getElementById('floorBreakdown');
+function renderStatusBreakdown() {
+    const container = document.getElementById('statusBreakdown');
     
-    if (!state.metrics || !state.metrics.by_floor) {
+    if (!state.metrics || !state.metrics.by_status) {
         container.innerHTML = '<p class="text-muted text-center">No data available</p>';
         return;
     }
     
-    const floors = state.metrics.by_floor;
-    const maxCount = Math.max(...Object.values(floors), 1);
+    const statuses = state.metrics.by_status;
+    const total = Object.values(statuses).reduce((a, b) => a + b, 0) || 1;
     
     let html = '<div class="table-responsive"><table class="table table-sm">';
-    html += '<thead><tr><th>Floor</th><th>Tickets</th><th>Distribution</th></tr></thead><tbody>';
+    html += '<thead><tr><th>Status</th><th>Count</th><th>Percentage</th><th>Distribution</th></tr></thead><tbody>';
     
-    Object.entries(floors).sort((a, b) => b[1] - a[1]).forEach(([floor, count]) => {
-        const percentage = (count / maxCount) * 100;
-        
-        html += `
-            <tr>
-                <td><strong>Floor ${floor}</strong></td>
-                <td><span class="badge bg-primary">${count}</span></td>
-                <td>
-                    <div class="progress" style="height: 20px;">
-                        <div class="progress-bar" role="progressbar" 
-                             style="width: ${percentage}%">${count}</div>
-                    </div>
-                </td>
-            </tr>
-        `;
+    const statusOrder = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'ESCALATED'];
+    const statusColors = {
+        'OPEN': 'info',
+        'IN_PROGRESS': 'primary',
+        'RESOLVED': 'success',
+        'CLOSED': 'secondary',
+        'ESCALATED': 'danger'
+    };
+    
+    statusOrder.forEach(status => {
+        const count = statuses[status] || 0;
+        if (count > 0) {
+            const percentage = ((count / total) * 100).toFixed(1);
+            
+            html += `
+                <tr>
+                    <td><strong>${status.replace('_', ' ')}</strong></td>
+                    <td><span class="badge bg-${statusColors[status] || 'secondary'}">${count}</span></td>
+                    <td>${percentage}%</td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-${statusColors[status] || 'secondary'}" role="progressbar" 
+                                 style="width: ${percentage}%"></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
     });
     
     html += '</tbody></table></div>';
@@ -511,9 +524,10 @@ function renderSLAMonitoring() {
                         <h6 class="mb-1">Ticket #${UI.escapeHTML(ticket.id)}</h6>
                         <p class="mb-1 small">${UI.escapeHTML(ticket.title)}</p>
                         <small class="text-muted">
-                            ${ticket.building} - Floor ${ticket.floor} | 
+                            Location: ${ticket.latitude && ticket.longitude ? `${ticket.latitude}, ${ticket.longitude}` : 'Not available'} | 
                             Time Remaining: ${ticket.time_remaining || 'N/A'}
                         </small>
+                        ${ticket.latitude && ticket.longitude ? `<br><small><a href="https://www.google.com/maps?q=${ticket.latitude},${ticket.longitude}" target="_blank" class="text-decoration-none"><i class="bi bi-map me-1"></i>Open in Maps</a></small>` : ''}
                     </div>
                     <span class="badge ${ticket.sla_breached ? 'bg-danger' : ticket.at_risk ? 'bg-warning text-dark' : 'bg-success'}">
                         ${ticket.sla_breached ? 'BREACHED' : ticket.at_risk ? 'AT RISK' : 'OK'}
@@ -550,13 +564,12 @@ function renderTeamPerformanceList() {
     const teams = state.metrics.team_performance;
     
     let html = '<div class="table-responsive"><table class="table">';
-    html += '<thead><tr><th>Support Group</th><th>Floor</th><th>Active</th><th>Resolved</th><th>Avg Time</th><th>SLA %</th></tr></thead><tbody>';
+    html += '<thead><tr><th>Support Group</th><th>Active</th><th>Resolved</th><th>Avg Time</th><th>SLA %</th></tr></thead><tbody>';
     
     teams.forEach(team => {
         html += `
             <tr>
                 <td><strong>${UI.escapeHTML(team.name)}</strong></td>
-                <td>Floor ${team.floor}</td>
                 <td><span class="badge bg-primary">${team.active_tickets}</span></td>
                 <td><span class="badge bg-success">${team.resolved_tickets}</span></td>
                 <td>${formatTime(team.avg_resolution_time)}</td>
@@ -865,7 +878,6 @@ function renderSupportGroups() {
                     <div>
                         <h6 class="mb-1">${UI.escapeHTML(group.name)}</h6>
                         <small class="text-muted">
-                            ${UI.escapeHTML(group.building)} - Floor ${group.floor} | 
                             ${group.member_count || 0} members | 
                             Status: ${group.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
                         </small>

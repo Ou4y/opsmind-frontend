@@ -412,13 +412,9 @@
                                     <label class="text-muted small">Escalation Count</label>
                                     <p class="mb-0 fw-medium" id="ticketEscalationCount"></p>
                                 </div>
-                                <div class="col-6 col-md-3">
-                                    <label class="text-muted small">Building</label>
-                                    <p class="mb-0" id="ticketBuilding"></p>
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <label class="text-muted small">Room</label>
-                                    <p class="mb-0" id="ticketRoom"></p>
+                                <div class="col-12 col-md-6">
+                                    <label class="text-muted small">Location</label>
+                                    <p class="mb-0" id="ticketLocation"></p>
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <label class="text-muted small">Created</label>
@@ -778,26 +774,8 @@
                             <small class="text-muted">Valid transitions: OPEN → IN_PROGRESS → RESOLVED → CLOSED</small>
                         </div>
                         
-                        <!-- Building -->
-                        <div class="col-12 col-md-6">
-                            <label for="updateTicketBuilding" class="form-label">Building <span class="text-danger">*</span></label>
-                            <select class="form-select" id="updateTicketBuilding" name="building" required>
-                                <option value="">Select Building</option>
-                                <option value="Main">Main</option>
-                                <option value="S">S</option>
-                                <option value="N">N</option>
-                                <option value="R">R</option>
-                                <option value="K">K</option>
-                            </select>
-                            <div class="invalid-feedback">Please select a building.</div>
-                        </div>
-                        
-                        <!-- Room -->
-                        <div class="col-12 col-md-6">
-                            <label for="updateTicketRoom" class="form-label">Room <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="updateTicketRoom" name="room" required placeholder="e.g., Room 101">
-                            <div class="invalid-feedback">Please enter the room number.</div>
-                        </div>
+                        <!-- Location fields hidden - tickets now use geographic coordinates set at creation -->
+                        <!-- Building and Room are no longer editable after creation -->
                         
                         <!-- Resolution Summary (conditional) -->
                         <div class="col-12" id="updateResolutionSummaryContainer" style="display: none;">
